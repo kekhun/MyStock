@@ -11,7 +11,10 @@ let selectedPeriod = "all";
 let supabaseClient = null;
 
 const documentNames = ["holdings", "categories", "prices", "snapshots", "settings"];
-const supabaseConfig = window.MYSTOCK_CONFIG || {};
+const supabaseConfig = {
+  ...(window.MYSTOCK_CONFIG || {}),
+  supabaseUrl: normalizeSupabaseUrl(window.MYSTOCK_CONFIG?.supabaseUrl || ""),
+};
 const supabaseEnabled = Boolean(supabaseConfig.supabaseUrl && supabaseConfig.supabaseAnonKey && window.supabase);
 
 const $ = (selector) => document.querySelector(selector);
@@ -19,6 +22,13 @@ const $$ = (selector) => [...document.querySelectorAll(selector)];
 
 function money(value, unit = "TWD") {
   return currency[unit].format(Number(value || 0));
+}
+
+function normalizeSupabaseUrl(url) {
+  return String(url || "")
+    .trim()
+    .replace(/\/rest\/v1\/?$/i, "")
+    .replace(/\/+$/g, "");
 }
 
 function setStatus(message, strong = "") {
