@@ -1,4 +1,4 @@
 window.MYSTOCK_CONFIG = {
-  supabaseUrl: "https://sranxapozauqyidneilt.supabase.co/rest/v1/",
+  supabaseUrl: "https://sranxapozauqyidneilt.supabase.co",
   supabaseAnonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNyYW54YXBvemF1cXlpZG5laWx0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkwMDk5NDksImV4cCI6MjA5NDU4NTk0OX0.DllUdn4YDJhOoN3bnqrwq321Gzb33R6aangiTkXvFOI",
 };
