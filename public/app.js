@@ -396,7 +396,7 @@ async function showSupabaseAuth() {
       if (result.error) throw result.error;
       window.location.reload();
     } catch (error) {
-      status.textContent = error.message;
+      status.textContent = [error.code, error.message].filter(Boolean).join(": ");
       status.hidden = false;
     }
   });
