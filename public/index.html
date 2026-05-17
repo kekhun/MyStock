@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MyStock 部位追蹤</title>
+    <link rel="stylesheet" href="styles.css?v=20260517-supabase-1" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">MyStock Tracker</p>
+        <h1>股票部位追蹤</h1>
+      </div>
+      <div class="actions">
+        <button id="refreshPrices" class="primary">更新價格</button>
+        <button id="saveSnapshot">儲存快照</button>
+        <a class="button" href="/api/export/holdings.csv">匯出 CSV</a>
+        <button id="logoutButton" class="secondary" hidden>登出</button>
+      </div>
+    </header>
+
+    <main>
+      <section class="status" id="status"></section>
+      <section class="update-details" id="updateDetails"></section>
+
+      <section class="kpis" id="kpis"></section>
+
+      <nav class="tabs" aria-label="主要頁籤">
+        <button class="tab active" data-tab="dashboard">總覽</button>
+        <button class="tab" data-tab="holdings">持股</button>
+        <button class="tab" data-tab="categories">分類</button>
+        <button class="tab" data-tab="stock">單一股票</button>
+        <button class="tab" data-tab="settings">設定</button>
+      </nav>
+
+      <section id="dashboard" class="tab-panel active">
+        <div class="dashboard-grid">
+          <section class="panel wide">
+            <div class="panel-title">
+              <h2>資產時間軸</h2>
+              <div class="period-controls" aria-label="時間範圍">
+                <button class="period-button active" data-period="all" type="button">全部</button>
+                <button class="period-button" data-period="ytd" type="button">今年</button>
+                <button class="period-button" data-period="12m" type="button">近 1 年</button>
+                <button class="period-button" data-period="6m" type="button">近 6 個月</button>
+              </div>
+            </div>
+            <div id="timelineSummary" class="timeline-summary"></div>
+            <canvas id="timelineChart" height="220"></canvas>
+            <div id="snapshotList" class="snapshot-list"></div>
+          </section>
+          <section class="panel">
+            <h2>分類配置</h2>
+            <canvas id="categoryChart" height="240"></canvas>
+          </section>
+          <section class="panel">
+            <h2>券商配置</h2>
+            <canvas id="brokerChart" height="240"></canvas>
+          </section>
+          <section class="panel">
+            <h2>台股 / 美股分布</h2>
+            <canvas id="marketChart" height="240"></canvas>
+          </section>
+          <section class="panel">
+            <h2>期間變化</h2>
+            <div id="periodBreakdown" class="period-breakdown"></div>
+          </section>
+          <section class="panel wide">
+            <h2>集中度</h2>
+            <div id="concentration"></div>
+          </section>
+        </div>
+      </section>
+
+      <section id="holdings" class="tab-panel">
+        <section class="panel">
+          <div class="panel-title">
+            <h2>持股明細</h2>
+            <button id="newHolding">新增持股</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>券商</th>
+                  <th>股票</th>
+                  <th>股數</th>
+                  <th>幣別</th>
+                  <th>價格</th>
+                  <th>台幣總值</th>
+                  <th>分類</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="holdingsRows"></tbody>
+            </table>
+          </div>
+        </section>
+        <section class="panel form-panel">
+          <h2 id="holdingFormTitle">新增持股</h2>
+          <form id="holdingForm" class="edit-form">
+            <input type="hidden" name="id" />
+            <label>券商 <input name="broker" required /></label>
+            <label>名稱 <input name="name" required /></label>
+            <label>股票代號 <input name="symbol" required /></label>
+            <label>抓價代號 <input name="quoteSymbol" required /></label>
+            <label>市場
+              <select name="market">
+                <option value="US">美股</option>
+                <option value="TW">台股</option>
+              </select>
+            </label>
+            <label>幣別
+              <select name="currency">
+                <option value="USD">USD</option>
+                <option value="TWD">TWD</option>
+              </select>
+            </label>
+            <label>股數 <input name="shares" type="number" step="0.0001" required /></label>
+            <label>分類 <select name="categoryId" id="holdingCategorySelect"></select></label>
+            <p class="form-note">同一券商同一檔股票增加持股時，請編輯原本那列，將「股數」改成目前總股數。換券商買同一檔股票時，新增一筆持股並填相同股票代號。</p>
+            <div class="form-actions">
+              <button class="primary" type="submit">儲存持股</button>
+              <button type="button" id="resetHoldingForm">清空</button>
+            </div>
+          </form>
+        </section>
+      </section>
+
+      <section id="categories" class="tab-panel">
+        <section class="panel">
+          <div class="panel-title">
+            <h2>分類管理</h2>
+            <button id="newCategory">新增分類</button>
+          </div>
+          <div id="categoryList" class="category-list"></div>
+        </section>
+        <section class="panel form-panel">
+          <h2 id="categoryFormTitle">新增分類</h2>
+          <form id="categoryForm" class="edit-form">
+            <input type="hidden" name="id" />
+            <label>名稱 <input name="name" required /></label>
+            <label>顏色 <input name="color" type="color" value="#64748b" /></label>
+            <label>排序 <input name="order" type="number" step="1" value="10" /></label>
+            <label class="checkbox"><input name="archived" type="checkbox" /> 停用分類</label>
+            <div class="form-actions">
+              <button class="primary" type="submit">儲存分類</button>
+              <button type="button" id="resetCategoryForm">清空</button>
+            </div>
+          </form>
+        </section>
+      </section>
+
+      <section id="stock" class="tab-panel">
+        <section class="panel">
+          <div class="panel-title">
+            <h2>單一股票</h2>
+            <select id="stockSelect"></select>
+          </div>
+          <div id="stockSummary" class="stock-summary"></div>
+          <canvas id="stockChart" height="260"></canvas>
+          <div id="stockBrokerSplit" class="broker-split"></div>
+        </section>
+      </section>
+
+      <section id="settings" class="tab-panel">
+        <section class="panel settings-panel">
+          <h2>資料來源設定</h2>
+          <form id="settingsForm" class="edit-form settings-form">
+            <label>Alpha Vantage API key <input name="alphaVantageApiKey" type="password" autocomplete="off" /></label>
+            <label>價格快取小時 <input name="cacheQuotesForHours" type="number" min="1" step="1" /></label>
+            <div class="form-actions">
+              <button class="primary" type="submit">儲存設定</button>
+            </div>
+          </form>
+          <div class="guide">
+            <h3>取得 API key</h3>
+            <p>到 <a href="https://www.alphavantage.co/support/#api-key" target="_blank" rel="noreferrer">Alpha Vantage API key 頁面</a> 申請免費 key，貼到上方欄位後按「儲存設定」。免費額度有限，工具會快取價格，平常按「更新價格」即可。</p>
+            <p>USD/TWD 會優先抓台灣央行資料；台股會優先抓 TWSE 公開資料，抓不到時才使用備援來源。</p>
+          </div>
+          <div class="guide">
+            <h3>資料備份 / 匯入</h3>
+            <p>雲端版第一次登入後，可先在本機版匯出完整備份，再到這裡匯入 Supabase。匯入會覆蓋目前雲端資料。</p>
+            <div class="form-actions">
+              <button id="exportBackup" type="button">匯出完整備份</button>
+              <label class="file-button">
+                匯入完整備份
+                <input id="importBackup" type="file" accept="application/json" />
+              </label>
+            </div>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+    <script src="app.js?v=20260517-supabase-1" type="module"></script>
+  </body>
+</html>

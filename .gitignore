@@ -1,0 +1,8 @@
+.DS_Store
+node_modules/
+
+# Local private portfolio data. Do not publish this to a public GitHub Pages repo.
+data/*.json
+
+# Local backup/export files.
+mystock-backup*.json
