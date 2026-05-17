@@ -15,7 +15,8 @@ const supabaseConfig = {
   ...(window.MYSTOCK_CONFIG || {}),
   supabaseUrl: normalizeSupabaseUrl(window.MYSTOCK_CONFIG?.supabaseUrl || ""),
 };
-const supabaseEnabled = Boolean(supabaseConfig.supabaseUrl && supabaseConfig.supabaseAnonKey && window.supabase);
+const localApiHost = ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname);
+const supabaseEnabled = !localApiHost && Boolean(supabaseConfig.supabaseUrl && supabaseConfig.supabaseAnonKey && window.supabase);
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];

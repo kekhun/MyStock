@@ -64,6 +64,15 @@ function textResponse(res, status, body, contentType = "text/plain; charset=utf-
   res.end(body);
 }
 
+function downloadResponse(res, status, body, filename, contentType) {
+  res.writeHead(status, {
+    "content-type": contentType,
+    "content-length": Buffer.byteLength(body),
+    "content-disposition": `attachment; filename="${filename}"`,
+  });
+  res.end(body);
+}
+
 function redirectResponse(res, location, headers = {}) {
   res.writeHead(302, { location, ...headers });
   res.end();
@@ -637,15 +646,16 @@ async function handleApi(req, res, pathname) {
 
   if (req.method === "GET" && pathname === "/api/export/holdings.csv") {
     const portfolio = buildPortfolio(await loadPortfolioData());
-    return textResponse(res, 200, toCsv(portfolio), "text/csv; charset=utf-8");
+    return downloadResponse(res, 200, toCsv(portfolio), "holdings.csv", "text/csv; charset=utf-8");
   }
 
   if (req.method === "GET" && pathname === "/api/export/data.json") {
     const data = await loadPortfolioData();
-    return jsonResponse(res, 200, {
+    const backup = JSON.stringify({
       ...data,
       settings: { ...data.settings, alphaVantageApiKey: "" },
-    });
+    }, null, 2);
+    return downloadResponse(res, 200, `${backup}\n`, `mystock-backup-${new Date().toISOString().slice(0, 10)}.json`, "application/json; charset=utf-8");
   }
 
   return jsonResponse(res, 404, { error: "API not found" });
