@@ -712,6 +712,25 @@ td {
   .wide {
     grid-column: auto;
   }
+
+  .tab-panel.active#holdings {
+    max-height: none;
+    min-height: 0;
+    overflow: visible;
+  }
+
+  .table-wrap {
+    max-height: none;
+    min-height: 0;
+    overflow-x: auto;
+    overflow-y: visible;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .form-panel {
+    max-height: none;
+    overflow: visible;
+  }
 }
 
 @media (max-width: 620px) {
