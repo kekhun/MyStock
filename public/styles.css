@@ -720,10 +720,13 @@ td {
   }
 
   .table-wrap {
+    width: 100%;
+    max-width: 100%;
     max-height: none;
     min-height: 0;
+    overflow: auto;
     overflow-x: auto;
-    overflow-y: visible;
+    overflow-y: auto;
     -webkit-overflow-scrolling: touch;
   }
 
