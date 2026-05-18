@@ -284,6 +284,7 @@ main {
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 8px;
+  min-width: 0;
   padding: 18px;
   box-shadow: var(--shadow);
 }
@@ -357,9 +358,11 @@ canvas {
 }
 
 .table-wrap {
+  max-width: 100%;
   max-height: calc(100vh - 370px);
   min-height: 420px;
   overflow: auto;
+  width: 100%;
 }
 
 table {
@@ -719,6 +722,11 @@ td {
     overflow: visible;
   }
 
+  .tab-panel.active#holdings > .panel {
+    overflow: hidden;
+    width: 100%;
+  }
+
   .table-wrap {
     width: 100%;
     max-width: 100%;
@@ -747,10 +755,19 @@ td {
     flex-direction: column;
   }
 
+  .panel-title {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
   button,
   .button,
   .file-button {
     width: 100%;
+  }
+
+  .panel-title button {
+    width: auto;
   }
 
   .edit-form {
