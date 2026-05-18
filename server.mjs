@@ -343,8 +343,44 @@ async function fetchAlphaQuote(symbol, apiKey) {
 }
 
 async function fetchTwseQuotes() {
-  const response = await fetch("https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL");
+  const response = await fetch("https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY_ALL?response=json");
   if (!response.ok) throw new Error(`TWSE HTTP ${response.status}`);
+  const data = await response.json();
+  const map = new Map();
+  const rows = Array.isArray(data) ? data : data.data || [];
+  for (const row of rows) {
+    const code = Array.isArray(row) ? normalizeSymbol(row[0]) : normalizeSymbol(row.Code || row.code || row["證券代號"]);
+    const price = Array.isArray(row) ? parseNumber(row[7]) : parseNumber(row.ClosingPrice || row.closingPrice || row["收盤價"]);
+    if (code && price) map.set(code, price);
+  }
+  try {
+    for (const [code, price] of await fetchTpexQuotes()) map.set(code, price);
+  } catch {
+    // TPEx is a best-effort supplement for OTC/bond ETFs; TWSE-listed quotes can still update without it.
+  }
+  if (!map.size) throw new Error("TWSE 沒有可解析的收盤價");
+  return map;
+}
+
+async function fetchTpexQuotes() {
+  const response = await fetch("https://www.tpex.org.tw/www/zh-tw/afterTrading/dailyQuotes");
+  if (!response.ok) throw new Error(`TPEx HTTP ${response.status}`);
+  const data = await response.json();
+  const map = new Map();
+  for (const table of data.tables || []) {
+    for (const row of table.data || []) {
+      const code = normalizeSymbol(row[0]);
+      const price = parseNumber(row[2]);
+      if (code && price) map.set(code, price);
+    }
+  }
+  if (!map.size) throw new Error("TPEx 沒有可解析的收盤價");
+  return map;
+}
+
+async function fetchTwseOpenApiQuotes() {
+  const response = await fetch("https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL");
+  if (!response.ok) throw new Error(`TWSE OpenAPI HTTP ${response.status}`);
   const rows = await response.json();
   const map = new Map();
   for (const row of rows) {
@@ -352,6 +388,7 @@ async function fetchTwseQuotes() {
     const price = parseNumber(row.ClosingPrice || row.closingPrice || row["收盤價"]);
     if (code && price) map.set(code, price);
   }
+  if (!map.size) throw new Error("TWSE OpenAPI 沒有可解析的收盤價");
   return map;
 }
 
@@ -446,8 +483,14 @@ export async function refreshPrices({ holdings, prices, settings, force = false 
     try {
       twseQuotes = await fetchTwseQuotes();
     } catch (error) {
-      messages.push(`TWSE 批次資料更新失敗：${error.message}`);
-      details.push({ level: "warn", symbol: "TWSE", message: "批次資料更新失敗，將嘗試個別備援" });
+      try {
+        twseQuotes = await fetchTwseOpenApiQuotes();
+        messages.push("TWSE 主要資料源失敗，已使用 OpenAPI 備援");
+        details.push({ level: "warn", symbol: "TWSE", message: "主要資料源失敗，已使用 OpenAPI 備援" });
+      } catch {
+        messages.push(`TWSE 批次資料更新失敗：${error.message}`);
+        details.push({ level: "warn", symbol: "TWSE", message: "批次資料更新失敗，將嘗試個別備援" });
+      }
     }
   }
 
@@ -458,7 +501,7 @@ export async function refreshPrices({ holdings, prices, settings, force = false 
     }
     try {
       let price = twseQuotes?.get(symbol);
-      let source = "twse-openapi";
+      let source = "taiwan-official";
       if (!price) {
         price = await fetchYahooChart(symbol);
         source = "yahoo-chart-fallback";
