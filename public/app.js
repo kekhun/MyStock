@@ -220,6 +220,13 @@ async function fetchAlphaQuote(symbol, apiKey) {
 }
 
 async function fetchTwseQuotes() {
+  if (supabaseEnabled) {
+    try {
+      return await fetchSupabaseTaiwanQuotes();
+    } catch {
+      // Fall back to direct browser fetches when the Edge Function has not been deployed yet.
+    }
+  }
   const response = await fetch("https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY_ALL?response=json");
   if (!response.ok) throw new Error(`TWSE HTTP ${response.status}`);
   const data = await response.json();
@@ -236,6 +243,24 @@ async function fetchTwseQuotes() {
     // TPEx is a best-effort supplement for OTC/bond ETFs; TWSE-listed quotes can still update without it.
   }
   if (!map.size) throw new Error("TWSE 沒有可解析的收盤價");
+  return map;
+}
+
+async function fetchSupabaseTaiwanQuotes() {
+  const response = await fetch(`${supabaseConfig.supabaseUrl}/functions/v1/taiwan-quotes`, {
+    headers: {
+      apikey: supabaseConfig.supabaseAnonKey,
+      authorization: `Bearer ${supabaseConfig.supabaseAnonKey}`,
+    },
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || `Taiwan quotes function HTTP ${response.status}`);
+  const map = new Map();
+  for (const [code, price] of Object.entries(data.quotes || {})) {
+    const parsed = parseNumber(price);
+    if (code && parsed) map.set(normalizeSymbol(code), parsed);
+  }
+  if (!map.size) throw new Error("Supabase Taiwan quotes function 沒有可解析的收盤價");
   return map;
 }
 

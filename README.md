@@ -143,7 +143,58 @@ https://sranxapozauqyidneilt.supabase.co/rest/v1/
 
 `anon public key` 可以放在前端和 public GitHub repo，真正保護資料的是 Supabase 的登入和 Row Level Security。不要使用或公開 `service_role` / `secret` key。
 
-### 5. 發佈 GitHub Pages
+### 5. 部署台股報價 Edge Function
+
+GitHub Pages 是靜態網頁，瀏覽器直接抓 TPEx 櫃買資料時可能會被 CORS 擋住。`00679B`、`00719B` 這類櫃買債券 ETF 需要 Supabase Edge Function 幫忙抓價。
+
+先安裝 Supabase CLI：
+
+```bash
+brew install supabase/tap/supabase
+```
+
+登入 Supabase：
+
+```bash
+supabase login
+```
+
+到 Supabase 專案頁面，複製 project ref。Project ref 是 Project URL 裡 `.supabase.co` 前面那串，例如：
+
+```text
+https://sranxapozauqyidneilt.supabase.co
+        ^^^^^^^^^^^^^^^^^^^^
+```
+
+在本機專案資料夾連結 Supabase 專案：
+
+```bash
+supabase link --project-ref 你的-project-ref
+```
+
+部署 function：
+
+```bash
+supabase functions deploy taiwan-quotes
+```
+
+部署完成後，可以測試：
+
+```bash
+curl https://你的-project-ref.supabase.co/functions/v1/taiwan-quotes \
+  -H "Authorization: Bearer 你的-anon-public-key"
+```
+
+回傳 JSON 裡應該會有：
+
+```text
+"00679B": 26.16
+"00719B": 30.92
+```
+
+數字會依當日收盤價不同而變動。
+
+### 6. 發佈 GitHub Pages
 
 這個專案已經包含 GitHub Actions workflow：
 
@@ -171,7 +222,7 @@ https://你的帳號.github.io/mystock-tracker/
 - `Settings` -> `Pages` 的 Source 是 `GitHub Actions`。
 - `.github/workflows/pages.yml` 裡的 `actions/configure-pages` 有 `enablement: true`。
 
-### 6. 第一次登入和匯入資料
+### 7. 第一次登入和匯入資料
 
 1. 打開 GitHub Pages 網址。
 2. 會看到 Supabase 登入畫面。
@@ -203,13 +254,13 @@ Supabase -> Authentication -> Sign In / Providers -> Email -> 關閉 Allow sign 
 
 關閉後，別人就不能隨便註冊新帳號消耗你的免費額度。就算未關閉，Row Level Security 仍會限制別人只能看到自己的資料，看不到你的資料。
 
-### 7. 手機使用
+### 8. 手機使用
 
 1. 用手機打開 GitHub Pages 網址。
 2. 用同一組 Supabase email / password 登入。
 3. 可以看資料、新增/編輯持股、儲存快照。
 
-### 8. 重要限制
+### 9. 重要限制
 
 - GitHub Pages 是靜態網頁，免費版 repo 必須 public。請確認 `data/*.json` 沒有被 commit。
 - `public/config.js` 會公開 Supabase Project URL 和 anon public key，這是 Supabase 前端用法允許的；不能公開的是 `service_role` / `secret` key。
