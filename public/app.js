@@ -872,10 +872,18 @@ function renderChangeGroup(title, startValues, endValues, labeler) {
 function renderConcentration() {
   const rows = state.allocationRows.slice(0, 8);
   $("#concentration").innerHTML = rows
-    .map((row, index) => `<div class="bar-row">
-      <strong>${row.symbol}</strong>
-      <div class="bar-track"><div class="bar-fill" style="width:${Math.max(2, row.weight * 100)}%;background:${row.categoryColor || palette(index)}"></div></div>
-      <span>${money(row.valueTwd, "TWD")} (${percent.format(row.weight)})</span>
+    .map((row, index) => `<div class="concentration-row">
+      <div class="concentration-symbol">
+        <strong>${row.symbol}</strong>
+        <span>${row.categoryName}</span>
+      </div>
+      <div class="concentration-track">
+        <div class="concentration-fill" style="width:${Math.max(2, row.weight * 100)}%;background:${row.categoryColor || palette(index)}"></div>
+      </div>
+      <div class="concentration-value">
+        <strong>${money(row.valueTwd, "TWD")}</strong>
+        <span>${percent.format(row.weight)}</span>
+      </div>
     </div>`)
     .join("");
 }
