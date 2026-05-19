@@ -1097,9 +1097,10 @@ function drawDonutChart(canvas, rawData) {
     return;
   }
   const total = data.reduce((sum, item) => sum + item.value, 0);
-  const radius = Math.min(width, height) * 0.32;
-  const cx = width * 0.36;
-  const cy = height * 0.48;
+  const compact = width < 520;
+  const radius = compact ? Math.min(width * 0.28, height * 0.24) : Math.min(width, height) * 0.32;
+  const cx = compact ? width * 0.5 : width * 0.36;
+  const cy = compact ? height * 0.38 : height * 0.48;
   let start = -Math.PI / 2;
   data.forEach((item, index) => {
     const angle = (item.value / total) * Math.PI * 2;
@@ -1116,16 +1117,27 @@ function drawDonutChart(canvas, rawData) {
   ctx.arc(cx, cy, radius * 0.58, 0, Math.PI * 2);
   ctx.fill();
   ctx.fillStyle = "#172033";
-  ctx.font = "600 14px system-ui";
+  ctx.font = compact ? "600 12px system-ui" : "600 14px system-ui";
   ctx.textAlign = "left";
   data.slice(0, 6).forEach((item, index) => {
-    const x = width * 0.68;
-    const y = 30 + index * 26;
+    const x = compact ? 16 + (index % 2) * ((width - 32) / 2) : width * 0.68;
+    const y = compact ? height * 0.72 + Math.floor(index / 2) * 24 : 30 + index * 26;
+    const label = `${item.label} ${percent.format(item.value / total)}`;
+    const maxTextWidth = compact ? (width - 44) / 2 : width - x - 18;
     ctx.fillStyle = item.color || palette(index);
     ctx.fillRect(x, y - 10, 10, 10);
     ctx.fillStyle = "#172033";
-    ctx.fillText(`${item.label} ${percent.format(item.value / total)}`, x + 16, y);
+    ctx.fillText(fitCanvasText(ctx, label, maxTextWidth), x + 16, y);
   });
+}
+
+function fitCanvasText(ctx, text, maxWidth) {
+  if (ctx.measureText(text).width <= maxWidth) return text;
+  let next = text;
+  while (next.length > 1 && ctx.measureText(`${next}...`).width > maxWidth) {
+    next = next.slice(0, -1);
+  }
+  return `${next}...`;
 }
 
 function drawAxisLabels(ctx, points, min, max, width, height, formatter) {

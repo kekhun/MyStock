@@ -745,14 +745,48 @@ td {
 }
 
 @media (max-width: 620px) {
-  h1 {
-    font-size: 26px;
+  main {
+    padding-left: 14px;
+    padding-right: 14px;
   }
 
-  .actions,
+  h1 {
+    font-size: 30px;
+  }
+
+  .actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+
   .form-actions {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .actions button,
+  .actions .button {
+    min-height: 42px;
+    padding: 0 10px;
+  }
+
+  .kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .kpi {
+    padding: 12px;
+  }
+
+  .kpi span {
+    font-size: 12px;
+  }
+
+  .kpi strong {
+    font-size: 20px;
+    overflow-wrap: anywhere;
   }
 
   .panel-title {
@@ -776,5 +810,13 @@ td {
 
   .bar-row {
     grid-template-columns: 1fr;
+  }
+
+  .panel {
+    padding: 14px;
+  }
+
+  canvas {
+    height: auto;
   }
 }
