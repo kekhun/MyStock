@@ -874,8 +874,11 @@ function renderConcentration() {
   $("#concentration").innerHTML = rows
     .map((row, index) => `<div class="concentration-row">
       <div class="concentration-symbol">
-        <strong>${row.symbol}</strong>
-        <span>${row.categoryName}</span>
+        <span class="concentration-rank">${index + 1}</span>
+        <div>
+          <strong>${row.symbol}</strong>
+          <span>${row.categoryName}</span>
+        </div>
       </div>
       <div class="concentration-track">
         <div class="concentration-fill" style="width:${Math.max(2, row.weight * 100)}%;background:${row.categoryColor || palette(index)}"></div>

@@ -572,10 +572,34 @@ td {
   display: grid;
   gap: 14px;
   grid-template-columns: 120px minmax(220px, 1fr) 160px;
-  padding: 6px 0;
+  background: linear-gradient(90deg, #ffffff, #f8fafc);
+  border: 1px solid #e6ebf3;
+  border-radius: 8px;
+  padding: 10px 12px;
 }
 
 .concentration-symbol {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  min-width: 0;
+}
+
+.concentration-rank {
+  align-items: center;
+  background: var(--panel-soft);
+  border-radius: 999px;
+  color: var(--muted);
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-size: 12px;
+  font-weight: 800;
+  height: 26px;
+  justify-content: center;
+  width: 26px;
+}
+
+.concentration-symbol > div {
   display: grid;
   gap: 3px;
   min-width: 0;
@@ -623,9 +647,9 @@ td {
 }
 
 .concentration-value span {
-  background: var(--panel-soft);
+  background: #eef6ff;
   border-radius: 999px;
-  color: var(--muted);
+  color: var(--primary);
   font-size: 12px;
   font-weight: 700;
   line-height: 1;
@@ -884,10 +908,15 @@ td {
 
   .concentration-row {
     gap: 8px;
-    grid-template-columns: 76px minmax(0, 1fr) 96px;
+    grid-template-columns: 82px minmax(0, 1fr) 96px;
+    padding: 9px 10px;
   }
 
-  .concentration-symbol span {
+  .concentration-symbol > div > span {
+    display: none;
+  }
+
+  .concentration-rank {
     display: none;
   }
 
