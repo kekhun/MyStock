@@ -390,8 +390,46 @@ canvas {
 
 table {
   width: 100%;
-  min-width: 920px;
+  min-width: 1040px;
   border-collapse: collapse;
+  table-layout: fixed;
+}
+
+th:nth-child(1),
+td:nth-child(1) {
+  width: 150px;
+}
+
+th:nth-child(2),
+td:nth-child(2) {
+  width: 150px;
+}
+
+th:nth-child(3),
+td:nth-child(3),
+th:nth-child(5),
+td:nth-child(5) {
+  width: 110px;
+}
+
+th:nth-child(4),
+td:nth-child(4) {
+  width: 82px;
+}
+
+th:nth-child(6),
+td:nth-child(6) {
+  width: 150px;
+}
+
+th:nth-child(7),
+td:nth-child(7) {
+  width: 170px;
+}
+
+th:nth-child(8),
+td:nth-child(8) {
+  width: 148px;
 }
 
 th,
@@ -403,11 +441,15 @@ td {
 }
 
 th {
+  background: #fff;
   color: var(--muted);
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0;
+  position: sticky;
+  top: 0;
   text-transform: uppercase;
+  z-index: 3;
 }
 
 td {
@@ -474,7 +516,7 @@ td:nth-child(6),
   display: flex;
   gap: 10px;
   justify-content: space-between;
-  min-width: 150px;
+  min-width: 0;
 }
 
 .table-wrap th:nth-child(2),
@@ -491,7 +533,7 @@ td:nth-child(6),
 }
 
 .table-wrap th:nth-child(2) {
-  z-index: 3;
+  z-index: 5;
 }
 
 .table-wrap th:last-child,

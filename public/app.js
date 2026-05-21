@@ -737,7 +737,6 @@ function renderCategories() {
 }
 
 function renderDashboard() {
-  const allTimeline = state.snapshots.map((snapshot) => ({ label: snapshot.date, value: snapshot.totals?.twd || 0 }));
   const periodSnapshots = filterSnapshotsByPeriod(state.snapshots, selectedPeriod);
   const normalizedSnapshots = periodSnapshots.map(normalizeSnapshot);
   const fullSnapshots = normalizedSnapshots.filter((snapshot) => snapshot.totals?.byCategory || snapshot.totals?.byBroker || snapshot.totals?.byMarket);
@@ -750,7 +749,6 @@ function renderDashboard() {
   drawLineChart($("#timelineChart"), timeline, {
     color: "#1f6feb",
     label: "總資產",
-    domain: getValueDomain(allTimeline),
     formatter: (value) => money(value, "TWD"),
   });
   renderSnapshotList(timeline);
@@ -805,7 +803,7 @@ function renderTimelineSummary(points) {
   const last = points.at(-1);
   const change = last.value - first.value;
   const changePct = first.value ? change / first.value : 0;
-  $("#timelineSummary").textContent = `${first.label} 到 ${last.label}，變化 ${money(change, "TWD")}（${percent.format(changePct)}），共 ${points.length} 筆快照。Y 軸固定使用全部歷史範圍。`;
+  $("#timelineSummary").textContent = `${first.label} 到 ${last.label}，變化 ${money(change, "TWD")}（${percent.format(changePct)}），共 ${points.length} 筆快照。Y 軸依目前區間調整。`;
 }
 
 function renderSnapshotList(points) {
