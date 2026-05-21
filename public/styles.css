@@ -390,7 +390,7 @@ canvas {
 
 table {
   width: 100%;
-  min-width: 820px;
+  min-width: 920px;
   border-collapse: collapse;
 }
 
@@ -477,12 +477,26 @@ td:nth-child(6),
   min-width: 150px;
 }
 
+.table-wrap th:nth-child(2),
+.table-wrap td:nth-child(2) {
+  background: #fff;
+  box-shadow: 1px 0 0 var(--line-soft);
+  left: 0;
+  position: sticky;
+  z-index: 2;
+}
+
+.holding-row td:nth-child(2) {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--broker-color), #ffffff 95%), #ffffff);
+}
+
+.table-wrap th:nth-child(2) {
+  z-index: 3;
+}
+
 .table-wrap th:last-child,
 .table-wrap td:last-child {
-  background: inherit;
-  position: sticky;
-  right: 0;
-  z-index: 1;
+  min-width: 146px;
 }
 
 .table-actions {

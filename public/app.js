@@ -1080,11 +1080,11 @@ function drawDualLineChart(canvas, points, options) {
   }
 
   const compact = width < 560;
-  const left = compact ? 18 : 76;
+  const left = compact ? 28 : 76;
   const right = width - 18;
-  const gap = compact ? 30 : 34;
+  const gap = compact ? 38 : 34;
   const top = 24;
-  const bottomPadding = compact ? 30 : 34;
+  const bottomPadding = compact ? 42 : 40;
   const plotHeight = Math.max(58, (height - top - bottomPadding - gap) / 2);
   const valuePlot = { left, top, right, bottom: top + plotHeight };
   const sharesPlot = {
@@ -1116,6 +1116,10 @@ function drawDualLineChart(canvas, points, options) {
     const values = points.map((point) => point[key] || 0);
     const { min, max } = getDomain(values);
     const y = (value) => plot.bottom - ((value - min) / (max - min || 1)) * (plot.bottom - plot.top);
+    const maxValue = Math.max(...values);
+    const minValue = Math.min(...values);
+    const maxIndex = values.indexOf(maxValue);
+    const minIndex = values.indexOf(minValue);
 
     ctx.strokeStyle = "#e8eef6";
     ctx.lineWidth = 1;
@@ -1154,6 +1158,33 @@ function drawDualLineChart(canvas, points, options) {
       ctx.fill();
     });
 
+    const drawPointBadge = (index, title, value, offsetY) => {
+      const text = `${title} ${formatter(value)}`;
+      ctx.font = compact ? "700 11px system-ui" : "700 12px system-ui";
+      const badgeWidth = Math.min(ctx.measureText(text).width + 14, plot.right - plot.left);
+      const badgeHeight = compact ? 22 : 24;
+      let bx = x(index, plot) - badgeWidth / 2;
+      const by = Math.max(plot.top + 4, Math.min(plot.bottom - badgeHeight - 4, y(value) + offsetY));
+      bx = Math.max(plot.left, Math.min(plot.right - badgeWidth, bx));
+      ctx.fillStyle = "rgba(255, 255, 255, 0.92)";
+      ctx.strokeStyle = "#d8dee9";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.roundRect(bx, by, badgeWidth, badgeHeight, 6);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = title === "高" ? "#b42318" : "#047857";
+      ctx.textAlign = "center";
+      ctx.fillText(fitCanvasText(ctx, text, badgeWidth - 10), bx + badgeWidth / 2, by + (compact ? 15 : 16));
+    };
+
+    if (points.length > 1) {
+      drawPointBadge(maxIndex, "高", maxValue, compact ? -28 : -30);
+      if (minIndex !== maxIndex) drawPointBadge(minIndex, "低", minValue, compact ? 10 : 12);
+    } else {
+      drawPointBadge(0, "值", values[0] || 0, compact ? -28 : -30);
+    }
+
     ctx.fillStyle = color;
     ctx.font = "700 13px system-ui";
     ctx.textAlign = "left";
@@ -1190,6 +1221,8 @@ function drawDualLineChart(canvas, points, options) {
     ctx.fillText(points[0]?.label || "", left, height - 8);
     ctx.textAlign = "right";
     ctx.fillText(points.at(-1)?.label || "", right, height - 8);
+    ctx.textAlign = "center";
+    ctx.fillText("日期", left + (right - left) / 2, height - 8);
   }
 }
 
