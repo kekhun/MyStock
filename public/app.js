@@ -699,11 +699,12 @@ function renderHoldings() {
             </tr>`
           : "";
       currentBroker = holding.broker;
+      const showHoldingName = holding.name && holding.name !== holding.symbol;
       return `${brokerHeader}<tr class="holding-row" style="--broker-color:${palette(brokerIndex)}">
         <td><span class="broker-dot"></span>${holding.broker}</td>
         <td>
           <div class="symbol-cell">
-            <div><strong>${holding.symbol}</strong><br><span class="muted">${holding.name}</span></div>
+            <div><strong>${holding.symbol}</strong>${showHoldingName ? `<br><span class="muted">${holding.name}</span>` : ""}</div>
           </div>
         </td>
         <td>${number.format(holding.shares)}</td>

@@ -390,46 +390,46 @@ canvas {
 
 table {
   width: 100%;
-  min-width: 1040px;
+  min-width: 934px;
   border-collapse: collapse;
   table-layout: fixed;
 }
 
 th:nth-child(1),
 td:nth-child(1) {
-  width: 150px;
+  width: 130px;
 }
 
 th:nth-child(2),
 td:nth-child(2) {
-  width: 150px;
+  width: 112px;
 }
 
 th:nth-child(3),
 td:nth-child(3),
 th:nth-child(5),
 td:nth-child(5) {
-  width: 110px;
+  width: 105px;
 }
 
 th:nth-child(4),
 td:nth-child(4) {
-  width: 82px;
+  width: 70px;
 }
 
 th:nth-child(6),
 td:nth-child(6) {
-  width: 150px;
+  width: 135px;
 }
 
 th:nth-child(7),
 td:nth-child(7) {
-  width: 170px;
+  width: 150px;
 }
 
 th:nth-child(8),
 td:nth-child(8) {
-  width: 148px;
+  width: 132px;
 }
 
 th,
@@ -1017,6 +1017,51 @@ td:nth-child(6),
 
   .panel-title button {
     width: auto;
+  }
+
+  table {
+    min-width: 834px;
+  }
+
+  th:nth-child(1),
+  td:nth-child(1) {
+    width: 104px;
+  }
+
+  th:nth-child(2),
+  td:nth-child(2) {
+    width: 92px;
+  }
+
+  th:nth-child(3),
+  td:nth-child(3),
+  th:nth-child(5),
+  td:nth-child(5) {
+    width: 92px;
+  }
+
+  th:nth-child(4),
+  td:nth-child(4) {
+    width: 62px;
+  }
+
+  th:nth-child(6),
+  td:nth-child(6) {
+    width: 124px;
+  }
+
+  th:nth-child(7),
+  td:nth-child(7) {
+    width: 132px;
+  }
+
+  th:nth-child(8),
+  td:nth-child(8) {
+    width: 136px;
+  }
+
+  .symbol-cell {
+    gap: 6px;
   }
 
   .edit-form {
