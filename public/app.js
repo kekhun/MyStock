@@ -32,6 +32,11 @@ function money(value, unit = "TWD") {
   return `${prefix}${formatter.format(Number(value || 0))}`;
 }
 
+function moneyValue(value, unit = "TWD") {
+  const formatter = currency[unit] || number;
+  return formatter.format(Number(value || 0));
+}
+
 function normalizeSupabaseUrl(url) {
   return String(url || "")
     .trim()
@@ -716,8 +721,8 @@ function renderHoldings() {
         </td>
         <td>${number.format(holding.shares)}</td>
         <td>${holding.currency}</td>
-        <td>${money(holding.price, holding.currency)}</td>
-        <td>${money(holding.valueTwd, "TWD")}</td>
+        <td>${moneyValue(holding.price, holding.currency)}</td>
+        <td>${moneyValue(holding.valueTwd, "TWD")}</td>
         <td><span class="swatch" style="display:inline-block;background:${categoryColor(holding.categoryId)}"></span> ${categoryName(holding.categoryId)}</td>
         <td><div class="table-actions">
           <button data-edit-holding="${holding.id}">編輯</button>
