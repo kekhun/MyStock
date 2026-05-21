@@ -1,6 +1,11 @@
 const currency = {
-  TWD: new Intl.NumberFormat("zh-TW", { style: "currency", currency: "TWD", maximumFractionDigits: 0 }),
-  USD: new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 2 }),
+  TWD: new Intl.NumberFormat("zh-TW", { maximumFractionDigits: 0 }),
+  USD: new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+};
+
+const currencyPrefix = {
+  TWD: "NT$",
+  USD: "US$",
 };
 
 const number = new Intl.NumberFormat("zh-TW", { maximumFractionDigits: 4 });
@@ -22,7 +27,9 @@ const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
 
 function money(value, unit = "TWD") {
-  return currency[unit].format(Number(value || 0));
+  const formatter = currency[unit] || number;
+  const prefix = currencyPrefix[unit] || `${unit} `;
+  return `${prefix}${formatter.format(Number(value || 0))}`;
 }
 
 function normalizeSupabaseUrl(url) {
