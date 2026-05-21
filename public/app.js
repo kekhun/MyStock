@@ -1070,33 +1070,127 @@ function drawLineChart(canvas, points, options) {
 
 function drawDualLineChart(canvas, points, options) {
   const { ctx, width, height } = prepareCanvas(canvas);
-  drawFrame(ctx, width, height);
+  ctx.clearRect(0, 0, width, height);
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, width, height);
+
   if (!points.length) {
     drawEmpty(ctx, width, height, "手動儲存快照後，這裡會顯示單股歷史");
     return;
   }
-  const drawSeries = (key, color) => {
-    const values = points.map((point) => point[key]);
-    const min = Math.min(...values, 0);
-    const max = Math.max(...values, 1);
-    const plot = { left: 52, top: 18, right: width - 16, bottom: height - 34 };
-    const x = (index) => plot.left + (points.length === 1 ? 0 : (index / (points.length - 1)) * (plot.right - plot.left));
+
+  const compact = width < 560;
+  const left = compact ? 18 : 76;
+  const right = width - 18;
+  const gap = compact ? 30 : 34;
+  const top = 24;
+  const bottomPadding = compact ? 30 : 34;
+  const plotHeight = Math.max(58, (height - top - bottomPadding - gap) / 2);
+  const valuePlot = { left, top, right, bottom: top + plotHeight };
+  const sharesPlot = {
+    left,
+    top: valuePlot.bottom + gap,
+    right,
+    bottom: valuePlot.bottom + gap + plotHeight,
+  };
+
+  const x = (index, plot) => {
+    if (points.length === 1) return plot.left + (plot.right - plot.left) / 2;
+    return plot.left + (index / (points.length - 1)) * (plot.right - plot.left);
+  };
+  const getDomain = (values) => {
+    let min = Math.min(...values);
+    let max = Math.max(...values);
+    if (min === max) {
+      const padding = Math.max(Math.abs(max) * 0.05, 1);
+      min -= padding;
+      max += padding;
+    } else {
+      const padding = (max - min) * 0.12;
+      min -= padding;
+      max += padding;
+    }
+    return { min, max };
+  };
+  const drawMiniChart = ({ key, label, color, plot, formatter }) => {
+    const values = points.map((point) => point[key] || 0);
+    const { min, max } = getDomain(values);
     const y = (value) => plot.bottom - ((value - min) / (max - min || 1)) * (plot.bottom - plot.top);
+
+    ctx.strokeStyle = "#e8eef6";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(plot.left, plot.top);
+    ctx.lineTo(plot.right, plot.top);
+    ctx.moveTo(plot.left, plot.bottom);
+    ctx.lineTo(plot.right, plot.bottom);
+    ctx.stroke();
+
+    if (!compact) {
+      ctx.fillStyle = "#64748b";
+      ctx.font = "12px system-ui";
+      ctx.textAlign = "right";
+      ctx.fillText(formatter(max), plot.left - 10, plot.top + 4);
+      ctx.fillText(formatter(min), plot.left - 10, plot.bottom + 4);
+    }
+
     ctx.strokeStyle = color;
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 3;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
     ctx.beginPath();
     points.forEach((point, index) => {
-      if (index === 0) ctx.moveTo(x(index), y(point[key]));
-      else ctx.lineTo(x(index), y(point[key]));
+      const px = x(index, plot);
+      const py = y(point[key] || 0);
+      if (index === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
     });
     ctx.stroke();
+
+    ctx.fillStyle = color;
+    points.forEach((point, index) => {
+      ctx.beginPath();
+      ctx.arc(x(index, plot), y(point[key] || 0), 3.5, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    ctx.fillStyle = color;
+    ctx.font = "700 13px system-ui";
+    ctx.textAlign = "left";
+    ctx.fillText(label, plot.left, plot.top - 8);
+
+    ctx.fillStyle = "#172033";
+    ctx.font = "700 14px system-ui";
+    ctx.textAlign = "right";
+    ctx.fillText(formatter(values.at(-1) || 0), plot.right, plot.top - 8);
   };
-  drawSeries("value", options.valueColor);
-  drawSeries("shares", options.sharesColor);
-  ctx.fillStyle = options.valueColor;
-  ctx.fillText("台幣總值", 62, 30);
-  ctx.fillStyle = options.sharesColor;
-  ctx.fillText("股數", 130, 30);
+
+  drawMiniChart({
+    key: "value",
+    label: "台幣總值",
+    color: options.valueColor,
+    plot: valuePlot,
+    formatter: (value) => money(value, "TWD"),
+  });
+  drawMiniChart({
+    key: "shares",
+    label: "股數",
+    color: options.sharesColor,
+    plot: sharesPlot,
+    formatter: (value) => number.format(value),
+  });
+
+  ctx.fillStyle = "#64748b";
+  ctx.font = "12px system-ui";
+  if (points.length === 1) {
+    ctx.textAlign = "center";
+    ctx.fillText(points[0]?.label || "", left + (right - left) / 2, height - 8);
+  } else {
+    ctx.textAlign = "left";
+    ctx.fillText(points[0]?.label || "", left, height - 8);
+    ctx.textAlign = "right";
+    ctx.fillText(points.at(-1)?.label || "", right, height - 8);
+  }
 }
 
 function drawDonutChart(canvas, rawData) {
