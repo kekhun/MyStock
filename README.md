@@ -143,9 +143,12 @@ https://sranxapozauqyidneilt.supabase.co/rest/v1/
 
 `anon public key` 可以放在前端和 public GitHub repo，真正保護資料的是 Supabase 的登入和 Row Level Security。不要使用或公開 `service_role` / `secret` key。
 
-### 5. 部署台股報價 Edge Function
+### 5. 部署報價 Edge Functions
 
-GitHub Pages 是靜態網頁，瀏覽器直接抓 TPEx 櫃買資料時可能會被 CORS 擋住。`00679B`、`00719B` 這類櫃買債券 ETF 需要 Supabase Edge Function 幫忙抓價。
+GitHub Pages 是靜態網頁，瀏覽器直接抓 TPEx 櫃買資料或 Stooq 美股批次資料時可能會被 CORS 擋住。這個專案用 Supabase Edge Functions 幫忙抓價：
+
+- `taiwan-quotes`：台股 / 櫃買報價，例如 `00679B`、`00719B`
+- `us-quotes`：美股批次報價，平常用來減少 Alpha Vantage 呼叫次數
 
 先安裝 Supabase CLI：
 
@@ -172,13 +175,14 @@ https://sranxapozauqyidneilt.supabase.co
 supabase link --project-ref 你的-project-ref
 ```
 
-部署 function：
+部署 functions：
 
 ```bash
 supabase functions deploy taiwan-quotes
+supabase functions deploy us-quotes
 ```
 
-部署完成後，可以測試：
+部署完成後，可以測試台股報價：
 
 ```bash
 curl https://你的-project-ref.supabase.co/functions/v1/taiwan-quotes \
@@ -193,6 +197,15 @@ curl https://你的-project-ref.supabase.co/functions/v1/taiwan-quotes \
 ```
 
 數字會依當日收盤價不同而變動。
+
+也可以測試美股批次報價：
+
+```bash
+curl "https://你的-project-ref.supabase.co/functions/v1/us-quotes?symbols=VOO,QQQM,SCHD" \
+  -H "Authorization: Bearer 你的-anon-public-key"
+```
+
+回傳 JSON 裡應該會看到 `VOO`、`QQQM`、`SCHD` 的價格。部署 `us-quotes` 後，GitHub Pages 版會優先用它批次更新美股；只有缺漏時才用 Alpha Vantage 備援。
 
 ### 6. 發佈 GitHub Pages
 

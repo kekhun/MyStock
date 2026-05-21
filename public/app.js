@@ -271,6 +271,13 @@ function parseCsvLine(line) {
 
 async function fetchStooqQuotes(symbols) {
   if (!symbols.length) return new Map();
+  if (supabaseEnabled) {
+    try {
+      return await fetchSupabaseUsQuotes(symbols);
+    } catch {
+      // Fall back to direct browser fetches when the Edge Function has not been deployed yet.
+    }
+  }
   const stooqSymbols = symbols.map((symbol) => `${normalizeSymbol(symbol).toLowerCase()}.us`);
   const url = `https://stooq.com/q/l/?s=${stooqSymbols.map(encodeURIComponent).join("+")}&f=sd2t2ohlcv&h&e=csv`;
   const response = await fetch(url);
@@ -292,6 +299,33 @@ async function fetchStooqQuotes(symbols) {
     }
   }
   if (!map.size) throw new Error("Stooq 沒有可解析的美股價格");
+  return map;
+}
+
+async function fetchSupabaseUsQuotes(symbols) {
+  const url = new URL(`${supabaseConfig.supabaseUrl}/functions/v1/us-quotes`);
+  url.searchParams.set("symbols", symbols.map(normalizeSymbol).join(","));
+  const response = await fetch(url, {
+    headers: {
+      apikey: supabaseConfig.supabaseAnonKey,
+      authorization: `Bearer ${supabaseConfig.supabaseAnonKey}`,
+    },
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || `US quotes function HTTP ${response.status}`);
+  const map = new Map();
+  for (const [symbol, quote] of Object.entries(data.quotes || {})) {
+    const price = parseNumber(quote?.price);
+    if (symbol && price) {
+      map.set(normalizeSymbol(symbol), {
+        price,
+        currency: "USD",
+        asOf: quote.asOf || data.asOf || new Date().toISOString(),
+        source: quote.source || "stooq-batch",
+      });
+    }
+  }
+  if (!map.size) throw new Error("Supabase US quotes function 沒有可解析的美股價格");
   return map;
 }
 
