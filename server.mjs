@@ -189,6 +189,11 @@ function shortProviderMessage(message = "") {
   return String(message).replace(/\s+/g, " ").slice(0, 160);
 }
 
+function quoteCacheMinutes(settings = {}) {
+  if (settings.cacheQuotesForMinutes != null) return Number(settings.cacheQuotesForMinutes || 10);
+  return 10;
+}
+
 function getFxRate(prices) {
   return Number(prices.fx?.USDTWD?.rate || 0);
 }
@@ -499,7 +504,7 @@ export async function refreshPrices({ holdings, prices, settings, force = false 
   const details = [];
   const summary = { updated: 0, skipped: 0, failed: 0, rateLimited: false };
   const now = new Date();
-  const cacheMs = Number(settings.cacheQuotesForHours || 12) * 60 * 60 * 1000;
+  const cacheMs = quoteCacheMinutes(settings) * 60 * 1000;
   const shouldFetch = (symbol) => {
     if (force) return true;
     const asOf = prices.quotes?.[symbol]?.asOf;
@@ -746,7 +751,7 @@ async function handleApi(req, res, pathname) {
     const next = {
       ...settings,
       alphaVantageApiKey: body.alphaVantageApiKey == null ? settings.alphaVantageApiKey : String(body.alphaVantageApiKey).trim(),
-      cacheQuotesForHours: body.cacheQuotesForHours == null ? settings.cacheQuotesForHours : Number(body.cacheQuotesForHours),
+      cacheQuotesForMinutes: body.cacheQuotesForMinutes == null ? quoteCacheMinutes(settings) : Number(body.cacheQuotesForMinutes),
     };
     await writeJson("settings", next);
     return jsonResponse(res, 200, { ...next, alphaVantageApiKey: next.alphaVantageApiKey ? "********" : "" });

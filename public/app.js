@@ -48,6 +48,11 @@ function moneyWhole(value, unit = "TWD") {
   return `${prefix}${formatter.format(Number(value || 0))}`;
 }
 
+function quoteCacheMinutes(settings = {}) {
+  if (settings.cacheQuotesForMinutes != null) return Number(settings.cacheQuotesForMinutes || 10);
+  return 10;
+}
+
 function normalizeSupabaseUrl(url) {
   return String(url || "")
     .trim()
@@ -402,7 +407,7 @@ async function refreshPrices({ holdings, prices, settings, force = false }) {
   const summary = { updated: 0, skipped: 0, failed: 0, rateLimited: false };
   const nextPrices = structuredClone(prices);
   const now = new Date();
-  const cacheMs = Number(settings.cacheQuotesForHours || 12) * 60 * 60 * 1000;
+  const cacheMs = quoteCacheMinutes(settings) * 60 * 1000;
   const shouldFetch = (symbol) => {
     if (force) return true;
     const asOf = nextPrices.quotes?.[symbol]?.asOf;
@@ -568,7 +573,7 @@ async function readSupabaseDocuments() {
     categories: docs.categories || [{ id: "uncategorized", name: "未分類", color: "#64748b", order: 99, archived: false }],
     prices: docs.prices || { fx: { USDTWD: { rate: 0, asOf: null, source: "missing" } }, quotes: {}, messages: [] },
     snapshots: docs.snapshots || [],
-    settings: docs.settings || { alphaVantageApiKey: "", baseCurrency: "TWD", cacheQuotesForHours: 12 },
+    settings: docs.settings || { alphaVantageApiKey: "", baseCurrency: "TWD", cacheQuotesForMinutes: 10 },
   };
 }
 
@@ -674,7 +679,7 @@ async function supabaseApi(path, options = {}) {
     const next = {
       ...docs.settings,
       alphaVantageApiKey: body.alphaVantageApiKey == null || body.alphaVantageApiKey === "" ? docs.settings.alphaVantageApiKey : String(body.alphaVantageApiKey).trim(),
-      cacheQuotesForHours: body.cacheQuotesForHours == null ? docs.settings.cacheQuotesForHours : Number(body.cacheQuotesForHours),
+      cacheQuotesForMinutes: body.cacheQuotesForMinutes == null ? quoteCacheMinutes(docs.settings) : Number(body.cacheQuotesForMinutes),
     };
     await writeSupabaseDocument("settings", next);
     return { ...next, alphaVantageApiKey: next.alphaVantageApiKey ? "********" : "" };
@@ -1015,7 +1020,7 @@ function renderStockDetail() {
 }
 
 function renderSettings() {
-  $("#settingsForm").cacheQuotesForHours.value = state.settings.cacheQuotesForHours || 12;
+  $("#settingsForm").cacheQuotesForMinutes.value = quoteCacheMinutes(state.settings);
 }
 
 function downloadJson(filename, value) {

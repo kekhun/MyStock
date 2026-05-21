@@ -169,14 +169,14 @@
           <h2>資料來源設定</h2>
           <form id="settingsForm" class="edit-form settings-form">
             <label>Alpha Vantage API key <input name="alphaVantageApiKey" type="password" autocomplete="off" /></label>
-            <label>價格快取小時 <input name="cacheQuotesForHours" type="number" min="1" step="1" /></label>
+            <label>價格快取分鐘 <input name="cacheQuotesForMinutes" type="number" min="1" step="1" /></label>
             <div class="form-actions">
               <button class="primary" type="submit">儲存設定</button>
             </div>
           </form>
           <div class="guide">
             <h3>取得 API key</h3>
-            <p>到 <a href="https://www.alphavantage.co/support/#api-key" target="_blank" rel="noreferrer">Alpha Vantage API key 頁面</a> 申請免費 key，貼到上方欄位後按「儲存設定」。免費額度有限，工具會快取價格，平常按「更新價格」即可。</p>
+            <p>美股會先用批次來源更新，缺漏時才用 Alpha Vantage 備援。到 <a href="https://www.alphavantage.co/support/#api-key" target="_blank" rel="noreferrer">Alpha Vantage API key 頁面</a> 申請免費 key，貼到上方欄位後按「儲存設定」。</p>
             <p>USD/TWD 會優先抓台灣央行資料；台股會優先抓 TWSE 公開資料，抓不到時才使用備援來源。</p>
           </div>
           <div class="guide">
@@ -196,6 +196,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="config.js?v=20260517-supabase-url-fix"></script>
-    <script src="app.js?v=20260521-kpi-whole-money-1" type="module"></script>
+    <script src="app.js?v=20260522-cache-minutes-1" type="module"></script>
   </body>
 </html>
