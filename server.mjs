@@ -194,6 +194,16 @@ function quoteCacheMinutes(settings = {}) {
   return 10;
 }
 
+async function fetchWithTimeout(url, options = {}, timeoutMs = 10000) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 function getFxRate(prices) {
   return Number(prices.fx?.USDTWD?.rate || 0);
 }
@@ -373,7 +383,7 @@ async function fetchStooqQuotes(symbols) {
   if (!symbols.length) return new Map();
   const stooqSymbols = symbols.map((symbol) => `${normalizeSymbol(symbol).toLowerCase()}.us`);
   const url = `https://stooq.com/q/l/?s=${stooqSymbols.map(encodeURIComponent).join("+")}&f=sd2t2ohlcv&h&e=csv`;
-  const response = await fetch(url);
+  const response = await fetchWithTimeout(url, {}, 10000);
   if (!response.ok) throw new Error(`Stooq HTTP ${response.status}`);
   const text = await response.text();
   const map = new Map();

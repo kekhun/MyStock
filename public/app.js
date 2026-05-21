@@ -53,6 +53,16 @@ function quoteCacheMinutes(settings = {}) {
   return 10;
 }
 
+async function fetchWithTimeout(url, options = {}, timeoutMs = 10000) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 function normalizeSupabaseUrl(url) {
   return String(url || "")
     .trim()
@@ -280,7 +290,7 @@ async function fetchStooqQuotes(symbols) {
   }
   const stooqSymbols = symbols.map((symbol) => `${normalizeSymbol(symbol).toLowerCase()}.us`);
   const url = `https://stooq.com/q/l/?s=${stooqSymbols.map(encodeURIComponent).join("+")}&f=sd2t2ohlcv&h&e=csv`;
-  const response = await fetch(url);
+  const response = await fetchWithTimeout(url, {}, 10000);
   if (!response.ok) throw new Error(`Stooq HTTP ${response.status}`);
   const text = await response.text();
   const map = new Map();
@@ -305,12 +315,16 @@ async function fetchStooqQuotes(symbols) {
 async function fetchSupabaseUsQuotes(symbols) {
   const url = new URL(`${supabaseConfig.supabaseUrl}/functions/v1/us-quotes`);
   url.searchParams.set("symbols", symbols.map(normalizeSymbol).join(","));
-  const response = await fetch(url, {
-    headers: {
-      apikey: supabaseConfig.supabaseAnonKey,
-      authorization: `Bearer ${supabaseConfig.supabaseAnonKey}`,
+  const response = await fetchWithTimeout(
+    url,
+    {
+      headers: {
+        apikey: supabaseConfig.supabaseAnonKey,
+        authorization: `Bearer ${supabaseConfig.supabaseAnonKey}`,
+      },
     },
-  });
+    12000
+  );
   const data = await response.json();
   if (!response.ok) throw new Error(data.error || `US quotes function HTTP ${response.status}`);
   const map = new Map();

@@ -33,11 +33,21 @@ function parseCsvLine(line: string) {
   return values.map((value) => value.trim());
 }
 
+async function fetchWithTimeout(url: string, options = {}, timeoutMs = 10000) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 async function fetchStooqQuotes(symbols: string[]) {
   if (!symbols.length) return {};
   const stooqSymbols = symbols.map((symbol) => `${normalizeSymbol(symbol).toLowerCase()}.us`);
   const url = `https://stooq.com/q/l/?s=${stooqSymbols.map(encodeURIComponent).join("+")}&f=sd2t2ohlcv&h&e=csv`;
-  const response = await fetch(url);
+  const response = await fetchWithTimeout(url, {}, 10000);
   if (!response.ok) throw new Error(`Stooq HTTP ${response.status}`);
   const text = await response.text();
   const quotes: Record<string, { price: number; asOf: string; source: string; currency: string }> = {};
