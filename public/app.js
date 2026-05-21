@@ -3,6 +3,11 @@ const currency = {
   USD: new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
 };
 
+const currencyWhole = {
+  TWD: new Intl.NumberFormat("zh-TW", { maximumFractionDigits: 0 }),
+  USD: new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }),
+};
+
 const currencyPrefix = {
   TWD: "NT$",
   USD: "US$",
@@ -35,6 +40,12 @@ function money(value, unit = "TWD") {
 function moneyValue(value, unit = "TWD") {
   const formatter = currency[unit] || number;
   return formatter.format(Number(value || 0));
+}
+
+function moneyWhole(value, unit = "TWD") {
+  const formatter = currencyWhole[unit] || number;
+  const prefix = currencyPrefix[unit] || `${unit} `;
+  return `${prefix}${formatter.format(Number(value || 0))}`;
 }
 
 function normalizeSupabaseUrl(url) {
@@ -221,14 +232,62 @@ async function fetchAlphaQuote(symbol, apiKey) {
   url.searchParams.set("function", "GLOBAL_QUOTE");
   url.searchParams.set("symbol", symbol);
   url.searchParams.set("apikey", apiKey);
-  const response = await fetch(url);
-  if (!response.ok) return { ok: false, message: `${symbol}: Alpha Vantage HTTP ${response.status}` };
-  const data = await response.json();
+  let data;
+  try {
+    const response = await fetch(url);
+    if (!response.ok) return { ok: false, message: `${symbol}: Alpha Vantage HTTP ${response.status}` };
+    data = await response.json();
+  } catch (error) {
+    return { ok: false, message: `${symbol}: Alpha Vantage 連線失敗：${error.message}` };
+  }
   if (data.Note || data.Information) return { ok: false, message: `${symbol}: ${shortProviderMessage(data.Note || data.Information)}`, code: "rate-limit" };
   const quote = data["Global Quote"] || {};
   const price = parseNumber(quote["05. price"]);
   if (!price) return { ok: false, message: `${symbol}: Alpha Vantage 沒有回傳價格` };
   return { ok: true, symbol, price, currency: "USD", asOf: new Date().toISOString(), source: "alpha-vantage" };
+}
+
+function parseCsvLine(line) {
+  const values = [];
+  let current = "";
+  let quoted = false;
+  for (const char of line) {
+    if (char === '"') quoted = !quoted;
+    else if (char === "," && !quoted) {
+      values.push(current);
+      current = "";
+    } else {
+      current += char;
+    }
+  }
+  values.push(current);
+  return values.map((value) => value.trim());
+}
+
+async function fetchStooqQuotes(symbols) {
+  if (!symbols.length) return new Map();
+  const stooqSymbols = symbols.map((symbol) => `${normalizeSymbol(symbol).toLowerCase()}.us`);
+  const url = `https://stooq.com/q/l/?s=${stooqSymbols.map(encodeURIComponent).join("+")}&f=sd2t2ohlcv&h&e=csv`;
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`Stooq HTTP ${response.status}`);
+  const text = await response.text();
+  const map = new Map();
+  for (const line of text.split(/\r?\n/).slice(1)) {
+    if (!line.trim()) continue;
+    const [rawSymbol, date, time, , , , close] = parseCsvLine(line);
+    const price = parseNumber(close);
+    const symbol = normalizeSymbol(String(rawSymbol || "").replace(/\.US$/i, ""));
+    if (symbol && price) {
+      map.set(symbol, {
+        price,
+        currency: "USD",
+        asOf: date && time ? new Date(`${date}T${time}Z`).toISOString() : new Date().toISOString(),
+        source: "stooq-batch",
+      });
+    }
+  }
+  if (!map.size) throw new Error("Stooq 沒有可解析的美股價格");
+  return map;
 }
 
 async function fetchTwseQuotes() {
@@ -402,9 +461,24 @@ async function refreshPrices({ holdings, prices, settings, force = false }) {
     }
   }
 
-  for (const symbol of usSymbols) {
-    if (!shouldFetch(symbol)) {
-      summary.skipped += 1;
+  const pendingUsSymbols = usSymbols.filter(shouldFetch);
+  summary.skipped += usSymbols.length - pendingUsSymbols.length;
+  let stooqQuotes = null;
+  if (pendingUsSymbols.length) {
+    try {
+      stooqQuotes = await fetchStooqQuotes(pendingUsSymbols);
+      details.push({ level: "ok", symbol: "US-BATCH", message: `Stooq 批次更新 ${stooqQuotes.size} / ${pendingUsSymbols.length} 檔美股` });
+    } catch {
+      details.push({ level: "warn", symbol: "US-BATCH", message: "批次資料更新失敗，改用 Alpha Vantage 備援" });
+    }
+  }
+
+  for (const symbol of pendingUsSymbols) {
+    const stooqQuote = stooqQuotes?.get(symbol);
+    if (stooqQuote) {
+      nextPrices.quotes[symbol] = stooqQuote;
+      details.push({ level: "ok", symbol, message: `已更新 ${stooqQuote.price}` });
+      summary.updated += 1;
       continue;
     }
     const quote = await fetchAlphaQuote(symbol, settings.alphaVantageApiKey);
@@ -651,9 +725,9 @@ function renderUpdateDetails() {
 function renderKpis() {
   const updatedQuotes = state.holdings.filter((holding) => holding.priceSource !== "missing").length;
   $("#kpis").innerHTML = [
-    ["總資產", money(state.totals.twd, "TWD")],
-    ["美元資產", money(state.totals.usdNative, "USD")],
-    ["台幣資產", money(state.totals.twdNative, "TWD")],
+    ["總資產", moneyWhole(state.totals.twd, "TWD")],
+    ["美元資產", moneyWhole(state.totals.usdNative, "USD")],
+    ["台幣資產", moneyWhole(state.totals.twdNative, "TWD")],
     ["追蹤持股", `${state.holdings.length} 筆 / ${updatedQuotes} 筆有價格`],
   ]
     .map(([label, value]) => `<div class="kpi"><span>${label}</span><strong>${value}</strong></div>`)
