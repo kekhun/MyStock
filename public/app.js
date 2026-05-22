@@ -892,6 +892,7 @@ function renderDashboard() {
   const endSnapshot = fullSnapshots.at(-1);
   const timeline = periodSnapshots.map((snapshot) => ({
     label: snapshot.date,
+    time: snapshotTimestamp(snapshot),
     value: snapshot.totals?.twd || 0,
     snapshot,
   }));
@@ -954,7 +955,13 @@ function renderTimelineSummary(points) {
   const last = points.at(-1);
   const change = last.value - first.value;
   const changePct = first.value ? change / first.value : 0;
-  $("#timelineSummary").textContent = `${first.label} 到 ${last.label}，變化 ${money(change, "TWD")}（${percent.format(changePct)}），共 ${points.length} 筆快照。Y 軸依目前區間調整。`;
+  $("#timelineSummary").textContent = `${first.label} 到 ${last.label}，變化 ${money(change, "TWD")}（${percent.format(changePct)}），共 ${points.length} 筆快照。X 軸依實際時間間隔，Y 軸依目前區間調整。`;
+}
+
+function snapshotTimestamp(snapshot) {
+  const raw = snapshot?.createdAt || (snapshot?.date ? `${snapshot.date}T12:00:00` : "");
+  const time = Date.parse(raw);
+  return Number.isFinite(time) ? time : null;
 }
 
 function setupTimelineTooltip(points, meta) {
@@ -1268,20 +1275,30 @@ function drawLineChart(canvas, points, options) {
   const min = options.domain?.min ?? fallbackDomain.min;
   const max = options.domain?.max ?? fallbackDomain.max;
   const plot = { left: 52, top: 18, right: width - 16, bottom: height - 34 };
-  const x = (index) => plot.left + (points.length === 1 ? 0 : (index / (points.length - 1)) * (plot.right - plot.left));
+  const times = points.map((point) => (Number.isFinite(point.time) ? point.time : null)).filter((time) => time != null);
+  const minTime = times.length ? Math.min(...times) : null;
+  const maxTime = times.length ? Math.max(...times) : null;
+  const useTimeScale = points.length > 1 && minTime != null && maxTime != null && maxTime > minTime;
+  const x = (point, index) => {
+    if (points.length === 1) return plot.left + (plot.right - plot.left) / 2;
+    if (useTimeScale && Number.isFinite(point.time)) {
+      return plot.left + ((point.time - minTime) / (maxTime - minTime)) * (plot.right - plot.left);
+    }
+    return plot.left + (index / (points.length - 1)) * (plot.right - plot.left);
+  };
   const y = (value) => plot.bottom - ((value - min) / (max - min || 1)) * (plot.bottom - plot.top);
   ctx.strokeStyle = options.color;
   ctx.lineWidth = 2.5;
   ctx.beginPath();
   points.forEach((point, index) => {
-    const px = x(index);
+    const px = x(point, index);
     const py = y(point.value);
     if (index === 0) ctx.moveTo(px, py);
     else ctx.lineTo(px, py);
   });
   ctx.stroke();
   ctx.fillStyle = options.color;
-  const positions = points.map((point, index) => ({ index, x: x(index), y: y(point.value), value: point.value }));
+  const positions = points.map((point, index) => ({ index, x: x(point, index), y: y(point.value), value: point.value }));
   positions.forEach((point) => {
     ctx.beginPath();
     ctx.arc(point.x, point.y, 3, 0, Math.PI * 2);
