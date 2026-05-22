@@ -236,6 +236,9 @@ function createSnapshot(portfolio) {
 }
 
 function shortProviderMessage(message = "") {
+  if (/Finnhub.*(HTTP 429|API limit|rate limit|too many requests)|too many requests/i.test(message)) {
+    return "Finnhub 免費額度或頻率限制，改用備援來源";
+  }
   if (/premium|rate limit|25 requests per day|request per second|Thank you for using Alpha Vantage/i.test(message)) {
     return "Alpha Vantage 免費額度或頻率限制，保留上次價格";
   }
@@ -309,6 +312,15 @@ async function fetchStooqQuotes(symbols) {
   return map;
 }
 
+function summarizeQuoteSources(quotes) {
+  const counts = new Map();
+  for (const quote of quotes.values()) {
+    const source = quote.source === "finnhub" ? "Finnhub" : quote.source === "stooq-batch" ? "Stooq" : quote.source || "unknown";
+    counts.set(source, (counts.get(source) || 0) + 1);
+  }
+  return [...counts.entries()].map(([source, count]) => `${source} ${count}`).join("，");
+}
+
 async function fetchSupabaseUsQuotes(symbols) {
   const url = new URL(`${supabaseConfig.supabaseUrl}/functions/v1/us-quotes`);
   url.searchParams.set("symbols", symbols.map(normalizeSymbol).join(","));
@@ -332,7 +344,7 @@ async function fetchSupabaseUsQuotes(symbols) {
         price,
         currency: "USD",
         asOf: quote.asOf || data.asOf || new Date().toISOString(),
-        source: quote.source || "stooq-batch",
+        source: quote.source || "finnhub",
       });
     }
   }
@@ -513,21 +525,21 @@ async function refreshPrices({ holdings, prices, settings, force = false }) {
 
   const pendingUsSymbols = usSymbols.filter(shouldFetch);
   summary.skipped += usSymbols.length - pendingUsSymbols.length;
-  let stooqQuotes = null;
+  let primaryUsQuotes = null;
   if (pendingUsSymbols.length) {
     try {
-      stooqQuotes = await fetchStooqQuotes(pendingUsSymbols);
-      details.push({ level: "ok", symbol: "US-BATCH", message: `Stooq 批次更新 ${stooqQuotes.size} / ${pendingUsSymbols.length} 檔美股` });
+      primaryUsQuotes = await fetchStooqQuotes(pendingUsSymbols);
+      details.push({ level: "ok", symbol: "US-BATCH", message: `美股主要來源更新 ${primaryUsQuotes.size} / ${pendingUsSymbols.length} 檔：${summarizeQuoteSources(primaryUsQuotes)}` });
     } catch (error) {
-      details.push({ level: "warn", symbol: "US-BATCH", message: `批次資料更新失敗：${shortProviderMessage(error.message)}。改用 Alpha Vantage 備援` });
+      details.push({ level: "warn", symbol: "US-BATCH", message: `美股主要來源失敗：${shortProviderMessage(error.message)}。改用 Alpha Vantage 備援` });
     }
   }
 
   for (const symbol of pendingUsSymbols) {
-    const stooqQuote = stooqQuotes?.get(symbol);
-    if (stooqQuote) {
-      nextPrices.quotes[symbol] = stooqQuote;
-      details.push({ level: "ok", symbol, message: `已更新 ${stooqQuote.price}` });
+    const primaryQuote = primaryUsQuotes?.get(symbol);
+    if (primaryQuote) {
+      nextPrices.quotes[symbol] = primaryQuote;
+      details.push({ level: "ok", symbol, message: `已由 ${primaryQuote.source === "finnhub" ? "Finnhub" : "Stooq"} 更新 ${primaryQuote.price}` });
       summary.updated += 1;
       continue;
     }

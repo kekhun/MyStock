@@ -43,6 +43,44 @@ async function fetchWithTimeout(url: string, options = {}, timeoutMs = 10000) {
   }
 }
 
+async function fetchFinnhubQuote(symbol: string, token: string) {
+  const normalized = normalizeSymbol(symbol);
+  const url = new URL("https://finnhub.io/api/v1/quote");
+  url.searchParams.set("symbol", normalized);
+  url.searchParams.set("token", token);
+  const response = await fetchWithTimeout(url.toString(), {}, 5000);
+  if (!response.ok) throw new Error(`Finnhub ${normalized} HTTP ${response.status}`);
+  const data = await response.json();
+  const price = parseNumber(data?.c);
+  if (!price) throw new Error(`Finnhub ${normalized} 沒有回傳價格`);
+  return {
+    price,
+    currency: "USD",
+    asOf: data?.t ? new Date(Number(data.t) * 1000).toISOString() : new Date().toISOString(),
+    source: "finnhub",
+  };
+}
+
+async function fetchFinnhubQuotes(symbols: string[]) {
+  const token = Deno.env.get("FINNHUB_API_KEY")?.trim();
+  if (!token) throw new Error("尚未設定 FINNHUB_API_KEY");
+  const quotes: Record<string, { price: number; asOf: string; source: string; currency: string }> = {};
+  const errors: string[] = [];
+  const uniqueSymbols = [...new Set(symbols.map(normalizeSymbol).filter(Boolean))];
+
+  await Promise.all(
+    uniqueSymbols.map(async (symbol) => {
+      try {
+        quotes[symbol] = await fetchFinnhubQuote(symbol, token);
+      } catch (error) {
+        errors.push(error instanceof Error ? error.message : String(error));
+      }
+    })
+  );
+
+  return { quotes, errors };
+}
+
 async function fetchStooqQuotes(symbols: string[]) {
   if (!symbols.length) return {};
   const stooqSymbols = symbols.map((symbol) => `${normalizeSymbol(symbol).toLowerCase()}.us`);
@@ -79,8 +117,18 @@ Deno.serve(async (req) => {
       .split(",")
       .map(normalizeSymbol)
       .filter(Boolean);
-    const quotes = await fetchStooqQuotes([...new Set(symbols)]);
-    return new Response(JSON.stringify({ quotes, asOf: new Date().toISOString() }), {
+    const uniqueSymbols = [...new Set(symbols)];
+    const { quotes, errors } = await fetchFinnhubQuotes(uniqueSymbols).catch((error) => ({
+      quotes: {},
+      errors: [error instanceof Error ? error.message : String(error)],
+    }));
+    const missingSymbols = uniqueSymbols.filter((symbol) => !quotes[symbol]);
+    const stooqQuotes = missingSymbols.length ? await fetchStooqQuotes(missingSymbols).catch(() => ({})) : {};
+    const mergedQuotes = { ...stooqQuotes, ...quotes };
+    if (!Object.keys(mergedQuotes).length) {
+      throw new Error(errors[0] || "美股報價來源沒有可解析的價格");
+    }
+    return new Response(JSON.stringify({ quotes: mergedQuotes, asOf: new Date().toISOString(), errors }), {
       headers: { ...corsHeaders, "content-type": "application/json; charset=utf-8" },
     });
   } catch (error) {

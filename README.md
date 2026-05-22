@@ -145,10 +145,10 @@ https://sranxapozauqyidneilt.supabase.co/rest/v1/
 
 ### 5. 部署報價 Edge Functions
 
-GitHub Pages 是靜態網頁，瀏覽器直接抓 TPEx 櫃買資料或 Stooq 美股批次資料時可能會被 CORS 擋住。這個專案用 Supabase Edge Functions 幫忙抓價：
+GitHub Pages 是靜態網頁，瀏覽器直接抓 TPEx 櫃買資料或美股報價時可能會被 CORS 擋住。這個專案用 Supabase Edge Functions 幫忙抓價：
 
 - `taiwan-quotes`：台股 / 櫃買報價，例如 `00679B`、`00719B`
-- `us-quotes`：美股批次報價，平常用來減少 Alpha Vantage 呼叫次數
+- `us-quotes`：美股報價，優先用 Finnhub，缺漏時用 Stooq，最後才回到 Alpha Vantage 備援
 
 先安裝 Supabase CLI：
 
@@ -174,6 +174,18 @@ https://sranxapozauqyidneilt.supabase.co
 ```bash
 supabase link --project-ref 你的-project-ref
 ```
+
+申請 Finnhub 免費 API key：
+
+1. 到 [Finnhub](https://finnhub.io/) 建立帳號。
+2. 登入後複製 API key。
+3. 在本機專案資料夾把 key 存成 Supabase Secret：
+
+```bash
+supabase secrets set FINNHUB_API_KEY=你的-finnhub-api-key
+```
+
+這個 key 不能放進 `public/config.js`，也不要 commit 到 GitHub。`FINNHUB_API_KEY` 會存在 Supabase 專案裡，只給 `us-quotes` Edge Function 使用。
 
 部署 functions：
 
@@ -205,7 +217,7 @@ curl "https://你的-project-ref.supabase.co/functions/v1/us-quotes?symbols=VOO,
   -H "Authorization: Bearer 你的-anon-public-key"
 ```
 
-回傳 JSON 裡應該會看到 `VOO`、`QQQM`、`SCHD` 的價格。部署 `us-quotes` 後，GitHub Pages 版會優先用它批次更新美股；只有缺漏時才用 Alpha Vantage 備援。
+回傳 JSON 裡應該會看到 `VOO`、`QQQM`、`SCHD` 的價格，且每檔會有 `source`。正常會是 `finnhub`；如果 Finnhub 缺漏，可能會看到 `stooq-batch`。部署 `us-quotes` 後，GitHub Pages 版會優先用它更新美股；只有缺漏時才用 Alpha Vantage 備援。
 
 ### 6. 發佈 GitHub Pages
 

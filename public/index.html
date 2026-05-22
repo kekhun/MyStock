@@ -179,7 +179,7 @@
           </form>
           <div class="guide">
             <h3>取得 API key</h3>
-            <p>美股會先用批次來源更新，缺漏時才用 Alpha Vantage 備援。到 <a href="https://www.alphavantage.co/support/#api-key" target="_blank" rel="noreferrer">Alpha Vantage API key 頁面</a> 申請免費 key，貼到上方欄位後按「儲存設定」。</p>
+            <p>雲端版美股會先透過 Supabase Function 使用 Finnhub，缺漏時才用 Alpha Vantage 備援。到 <a href="https://www.alphavantage.co/support/#api-key" target="_blank" rel="noreferrer">Alpha Vantage API key 頁面</a> 申請免費 key，貼到上方欄位後按「儲存設定」。</p>
             <p>USD/TWD 會優先抓台灣央行資料；台股會優先抓 TWSE 公開資料，抓不到時才使用備援來源。</p>
           </div>
           <div class="guide">
@@ -199,6 +199,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="config.js?v=20260517-supabase-url-fix"></script>
-    <script src="app.js?v=20260522-us-batch-errors-1" type="module"></script>
+    <script src="app.js?v=20260523-finnhub-us-1" type="module"></script>
   </body>
 </html>

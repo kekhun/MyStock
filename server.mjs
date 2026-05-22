@@ -183,6 +183,9 @@ function wait(ms) {
 }
 
 function shortProviderMessage(message = "") {
+  if (/Finnhub.*(HTTP 429|API limit|rate limit|too many requests)|too many requests/i.test(message)) {
+    return "Finnhub 免費額度或頻率限制，改用備援來源";
+  }
   if (/premium|rate limit|25 requests per day|request per second|Thank you for using Alpha Vantage/i.test(message)) {
     return "Alpha Vantage 免費額度或頻率限制，保留上次價格";
   }
@@ -362,6 +365,40 @@ async function fetchAlphaQuote(symbol, apiKey) {
   };
 }
 
+async function fetchFinnhubQuote(symbol, token) {
+  const normalized = normalizeSymbol(symbol);
+  const url = new URL("https://finnhub.io/api/v1/quote");
+  url.searchParams.set("symbol", normalized);
+  url.searchParams.set("token", token);
+  const response = await fetchWithTimeout(url, {}, 5000);
+  if (!response.ok) throw new Error(`Finnhub ${normalized} HTTP ${response.status}`);
+  const data = await response.json();
+  const price = parseNumber(data?.c);
+  if (!price) throw new Error(`Finnhub ${normalized} 沒有回傳價格`);
+  return {
+    price,
+    currency: "USD",
+    asOf: data?.t ? new Date(Number(data.t) * 1000).toISOString() : new Date().toISOString(),
+    source: "finnhub",
+  };
+}
+
+async function fetchFinnhubQuotes(symbols) {
+  const token = process.env.FINNHUB_API_KEY?.trim();
+  if (!token) throw new Error("尚未設定 FINNHUB_API_KEY");
+  const map = new Map();
+  const uniqueSymbols = [...new Set(symbols.map(normalizeSymbol).filter(Boolean))];
+  const results = await Promise.allSettled(uniqueSymbols.map((symbol) => fetchFinnhubQuote(symbol, token).then((quote) => [symbol, quote])));
+  for (const result of results) {
+    if (result.status === "fulfilled") map.set(result.value[0], result.value[1]);
+  }
+  if (!map.size) {
+    const firstError = results.find((result) => result.status === "rejected");
+    throw new Error(firstError?.reason?.message || "Finnhub 沒有可解析的美股價格");
+  }
+  return map;
+}
+
 function parseCsvLine(line) {
   const values = [];
   let current = "";
@@ -403,6 +440,34 @@ async function fetchStooqQuotes(symbols) {
   }
   if (!map.size) throw new Error("Stooq 沒有可解析的美股價格");
   return map;
+}
+
+async function fetchPrimaryUsQuotes(symbols) {
+  let primaryQuotes = new Map();
+  try {
+    primaryQuotes = await fetchFinnhubQuotes(symbols);
+  } catch {
+    // Finnhub is optional for local runs; Stooq remains the no-key fallback.
+  }
+  const missingSymbols = symbols.filter((symbol) => !primaryQuotes.has(symbol));
+  if (missingSymbols.length) {
+    try {
+      for (const [symbol, quote] of await fetchStooqQuotes(missingSymbols)) primaryQuotes.set(symbol, quote);
+    } catch (error) {
+      if (!primaryQuotes.size) throw error;
+    }
+  }
+  if (!primaryQuotes.size) throw new Error("美股主要來源沒有可解析的價格");
+  return primaryQuotes;
+}
+
+function summarizeQuoteSources(quotes) {
+  const counts = new Map();
+  for (const quote of quotes.values()) {
+    const source = quote.source === "finnhub" ? "Finnhub" : quote.source === "stooq-batch" ? "Stooq" : quote.source || "unknown";
+    counts.set(source, (counts.get(source) || 0) + 1);
+  }
+  return [...counts.entries()].map(([source, count]) => `${source} ${count}`).join("，");
 }
 
 async function fetchTwseQuotes() {
@@ -582,23 +647,23 @@ export async function refreshPrices({ holdings, prices, settings, force = false 
 
   const pendingUsSymbols = usSymbols.filter(shouldFetch);
   summary.skipped += usSymbols.length - pendingUsSymbols.length;
-  let stooqQuotes = null;
+  let primaryUsQuotes = null;
   if (pendingUsSymbols.length) {
     try {
-      stooqQuotes = await fetchStooqQuotes(pendingUsSymbols);
-      details.push({ level: "ok", symbol: "US-BATCH", message: `Stooq 批次更新 ${stooqQuotes.size} / ${pendingUsSymbols.length} 檔美股` });
+      primaryUsQuotes = await fetchPrimaryUsQuotes(pendingUsSymbols);
+      details.push({ level: "ok", symbol: "US-BATCH", message: `美股主要來源更新 ${primaryUsQuotes.size} / ${pendingUsSymbols.length} 檔：${summarizeQuoteSources(primaryUsQuotes)}` });
     } catch (error) {
-      messages.push(`美股批次資料更新失敗，改用 Alpha Vantage 備援：${error.message}`);
-      details.push({ level: "warn", symbol: "US-BATCH", message: `批次資料更新失敗：${shortProviderMessage(error.message)}。改用 Alpha Vantage 備援` });
+      messages.push(`美股主要來源更新失敗，改用 Alpha Vantage 備援：${error.message}`);
+      details.push({ level: "warn", symbol: "US-BATCH", message: `美股主要來源失敗：${shortProviderMessage(error.message)}。改用 Alpha Vantage 備援` });
     }
   }
 
   for (const symbol of pendingUsSymbols) {
-    const stooqQuote = stooqQuotes?.get(symbol);
-    if (stooqQuote) {
-      prices.quotes[symbol] = stooqQuote;
-      messages.push(`${symbol} 已由 Stooq 批次更新`);
-      details.push({ level: "ok", symbol, message: `已更新 ${stooqQuote.price}` });
+    const primaryQuote = primaryUsQuotes?.get(symbol);
+    if (primaryQuote) {
+      prices.quotes[symbol] = primaryQuote;
+      messages.push(`${symbol} 已由 ${primaryQuote.source === "finnhub" ? "Finnhub" : "Stooq"} 更新`);
+      details.push({ level: "ok", symbol, message: `已由 ${primaryQuote.source === "finnhub" ? "Finnhub" : "Stooq"} 更新 ${primaryQuote.price}` });
       summary.updated += 1;
       continue;
     }
