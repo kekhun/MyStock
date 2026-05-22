@@ -589,7 +589,7 @@ export async function refreshPrices({ holdings, prices, settings, force = false 
       details.push({ level: "ok", symbol: "US-BATCH", message: `Stooq 批次更新 ${stooqQuotes.size} / ${pendingUsSymbols.length} 檔美股` });
     } catch (error) {
       messages.push(`美股批次資料更新失敗，改用 Alpha Vantage 備援：${error.message}`);
-      details.push({ level: "warn", symbol: "US-BATCH", message: "批次資料更新失敗，改用 Alpha Vantage 備援" });
+      details.push({ level: "warn", symbol: "US-BATCH", message: `批次資料更新失敗：${shortProviderMessage(error.message)}。改用 Alpha Vantage 備援` });
     }
   }
 

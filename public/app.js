@@ -283,11 +283,7 @@ function parseCsvLine(line) {
 async function fetchStooqQuotes(symbols) {
   if (!symbols.length) return new Map();
   if (supabaseEnabled) {
-    try {
-      return await fetchSupabaseUsQuotes(symbols);
-    } catch {
-      // Fall back to direct browser fetches when the Edge Function has not been deployed yet.
-    }
+    return await fetchSupabaseUsQuotes(symbols);
   }
   const stooqSymbols = symbols.map((symbol) => `${normalizeSymbol(symbol).toLowerCase()}.us`);
   const url = `https://stooq.com/q/l/?s=${stooqSymbols.map(encodeURIComponent).join("+")}&f=sd2t2ohlcv&h&e=csv`;
@@ -324,7 +320,7 @@ async function fetchSupabaseUsQuotes(symbols) {
         authorization: `Bearer ${supabaseConfig.supabaseAnonKey}`,
       },
     },
-    12000
+    9000
   );
   const data = await response.json();
   if (!response.ok) throw new Error(data.error || `US quotes function HTTP ${response.status}`);
@@ -522,8 +518,8 @@ async function refreshPrices({ holdings, prices, settings, force = false }) {
     try {
       stooqQuotes = await fetchStooqQuotes(pendingUsSymbols);
       details.push({ level: "ok", symbol: "US-BATCH", message: `Stooq 批次更新 ${stooqQuotes.size} / ${pendingUsSymbols.length} 檔美股` });
-    } catch {
-      details.push({ level: "warn", symbol: "US-BATCH", message: "批次資料更新失敗，改用 Alpha Vantage 備援" });
+    } catch (error) {
+      details.push({ level: "warn", symbol: "US-BATCH", message: `批次資料更新失敗：${shortProviderMessage(error.message)}。改用 Alpha Vantage 備援` });
     }
   }
 
