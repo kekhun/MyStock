@@ -329,6 +329,66 @@ canvas {
   max-width: 100%;
 }
 
+.chart-shell {
+  position: relative;
+}
+
+.chart-tooltip {
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  box-shadow: var(--shadow-soft);
+  color: var(--ink);
+  display: grid;
+  gap: 6px;
+  min-width: 210px;
+  padding: 10px 12px;
+  pointer-events: none;
+  position: absolute;
+  transform: translate(-50%, -100%);
+  z-index: 4;
+}
+
+.chart-tooltip[hidden] {
+  display: none;
+}
+
+.chart-tooltip strong,
+.chart-tooltip span {
+  font-variant-numeric: tabular-nums;
+}
+
+.chart-tooltip .tooltip-date {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.chart-tooltip .tooltip-value {
+  font-size: 18px;
+  font-weight: 900;
+  line-height: 1.1;
+}
+
+.chart-tooltip .tooltip-grid {
+  display: grid;
+  gap: 4px;
+  grid-template-columns: 1fr auto;
+  font-size: 12px;
+}
+
+.chart-tooltip .positive {
+  background: transparent;
+  color: #047857;
+  padding: 0;
+}
+
+.chart-tooltip .negative {
+  background: transparent;
+  color: #b42318;
+  padding: 0;
+}
+
 .period-controls {
   color: var(--muted);
   flex-wrap: wrap;

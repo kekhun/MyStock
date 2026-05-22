@@ -19,6 +19,7 @@ const percent = new Intl.NumberFormat("zh-TW", { style: "percent", maximumFracti
 let state = null;
 let selectedPeriod = "all";
 let supabaseClient = null;
+let timelineInteraction = null;
 
 const documentNames = ["holdings", "categories", "prices", "snapshots", "settings"];
 const supabaseConfig = {
@@ -884,13 +885,15 @@ function renderDashboard() {
   const timeline = periodSnapshots.map((snapshot) => ({
     label: snapshot.date,
     value: snapshot.totals?.twd || 0,
+    snapshot,
   }));
   renderTimelineSummary(timeline);
-  drawLineChart($("#timelineChart"), timeline, {
+  const timelineMeta = drawLineChart($("#timelineChart"), timeline, {
     color: "#1f6feb",
     label: "總資產",
     formatter: (value) => money(value, "TWD"),
   });
+  setupTimelineTooltip(timeline, timelineMeta);
   renderSnapshotList(timeline);
   drawDonutChart(
     $("#categoryChart"),
@@ -944,6 +947,78 @@ function renderTimelineSummary(points) {
   const change = last.value - first.value;
   const changePct = first.value ? change / first.value : 0;
   $("#timelineSummary").textContent = `${first.label} 到 ${last.label}，變化 ${money(change, "TWD")}（${percent.format(changePct)}），共 ${points.length} 筆快照。Y 軸依目前區間調整。`;
+}
+
+function setupTimelineTooltip(points, meta) {
+  const canvas = $("#timelineChart");
+  const tooltip = $("#timelineTooltip");
+  if (!canvas || !tooltip) return;
+  if (timelineInteraction) {
+    timelineInteraction.abort();
+    timelineInteraction = null;
+  }
+  if (!points.length || !meta?.positions?.length) {
+    tooltip.hidden = true;
+    return;
+  }
+
+  const controller = new AbortController();
+  timelineInteraction = controller;
+  let hideTimer = null;
+
+  const showPoint = (clientX, keepVisible = false) => {
+    const rect = canvas.getBoundingClientRect();
+    const xInCanvas = clientX - rect.left;
+    let nearest = meta.positions[0];
+    for (const position of meta.positions) {
+      if (Math.abs(position.x - xInCanvas) < Math.abs(nearest.x - xInCanvas)) nearest = position;
+    }
+    const point = points[nearest.index];
+    const previous = points[nearest.index - 1];
+    const change = previous ? point.value - previous.value : 0;
+    const changeClass = change > 0 ? "positive" : change < 0 ? "negative" : "";
+    const totals = normalizeSnapshot(point.snapshot || {}).totals || {};
+    tooltip.innerHTML = `<span class="tooltip-date">${point.label}</span>
+      <strong class="tooltip-value">${money(point.value, "TWD")}</strong>
+      <div class="tooltip-grid">
+        <span>較前次</span><strong class="${changeClass}">${previous ? money(change, "TWD") : "第一筆"}</strong>
+        <span>美股</span><strong>${money(totals.byMarket?.["美股"] || 0, "TWD")}</strong>
+        <span>台股</span><strong>${money(totals.byMarket?.["台股"] || 0, "TWD")}</strong>
+      </div>`;
+    const tooltipWidth = tooltip.offsetWidth || 220;
+    const left = Math.max(tooltipWidth / 2 + 8, Math.min(rect.width - tooltipWidth / 2 - 8, nearest.x));
+    const top = Math.max(56, nearest.y - 12);
+    tooltip.style.left = `${left}px`;
+    tooltip.style.top = `${top}px`;
+    tooltip.hidden = false;
+    if (hideTimer) clearTimeout(hideTimer);
+    if (keepVisible) hideTimer = setTimeout(() => (tooltip.hidden = true), 1800);
+  };
+
+  canvas.addEventListener("mousemove", (event) => showPoint(event.clientX), { signal: controller.signal });
+  canvas.addEventListener("mouseleave", () => (tooltip.hidden = true), { signal: controller.signal });
+  canvas.addEventListener(
+    "touchstart",
+    (event) => {
+      if (event.touches[0]) showPoint(event.touches[0].clientX);
+    },
+    { passive: true, signal: controller.signal }
+  );
+  canvas.addEventListener(
+    "touchmove",
+    (event) => {
+      if (event.touches[0]) showPoint(event.touches[0].clientX);
+    },
+    { passive: true, signal: controller.signal }
+  );
+  canvas.addEventListener(
+    "touchend",
+    (event) => {
+      const touch = event.changedTouches[0];
+      if (touch) showPoint(touch.clientX, true);
+    },
+    { passive: true, signal: controller.signal }
+  );
 }
 
 function renderSnapshotList(points) {
@@ -1179,7 +1254,7 @@ function drawLineChart(canvas, points, options) {
   drawFrame(ctx, width, height);
   if (!points.length) {
     drawEmpty(ctx, width, height, "尚無快照資料");
-    return;
+    return { positions: [] };
   }
   const fallbackDomain = getValueDomain(points);
   const min = options.domain?.min ?? fallbackDomain.min;
@@ -1198,12 +1273,14 @@ function drawLineChart(canvas, points, options) {
   });
   ctx.stroke();
   ctx.fillStyle = options.color;
-  points.forEach((point, index) => {
+  const positions = points.map((point, index) => ({ index, x: x(index), y: y(point.value), value: point.value }));
+  positions.forEach((point) => {
     ctx.beginPath();
-    ctx.arc(x(index), y(point.value), 3, 0, Math.PI * 2);
+    ctx.arc(point.x, point.y, 3, 0, Math.PI * 2);
     ctx.fill();
   });
   drawAxisLabels(ctx, points, min, max, width, height, options.formatter);
+  return { positions, plot: { left: 52, top: 18, right: width - 16, bottom: height - 34 }, min, max };
 }
 
 function drawDualLineChart(canvas, points, options) {

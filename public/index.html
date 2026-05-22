@@ -47,7 +47,10 @@
               </div>
             </div>
             <div id="timelineSummary" class="timeline-summary"></div>
-            <canvas id="timelineChart" height="220"></canvas>
+            <div class="chart-shell" id="timelineChartShell">
+              <canvas id="timelineChart" height="220"></canvas>
+              <div id="timelineTooltip" class="chart-tooltip" hidden></div>
+            </div>
             <div id="snapshotList" class="snapshot-list"></div>
           </section>
           <section class="panel">
@@ -196,6 +199,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="config.js?v=20260517-supabase-url-fix"></script>
-    <script src="app.js?v=20260522-quote-timeout-1" type="module"></script>
+    <script src="app.js?v=20260522-chart-tooltip-1" type="module"></script>
   </body>
 </html>
