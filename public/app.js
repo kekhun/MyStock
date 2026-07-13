@@ -312,6 +312,30 @@ async function fetchStooqQuotes(symbols) {
   return map;
 }
 
+function addTwseJsonQuotes(data, map) {
+  const rows = Array.isArray(data) ? data : data?.data || [];
+  for (const row of rows) {
+    const code = Array.isArray(row) ? normalizeSymbol(row[0]) : normalizeSymbol(row.Code || row.code || row["證券代號"]);
+    const price = Array.isArray(row) ? parseNumber(row[7]) : parseNumber(row.ClosingPrice || row.closingPrice || row["收盤價"]);
+    if (code && price) map.set(code, price);
+  }
+}
+
+function addTwseCsvQuotes(text, map) {
+  const lines = text.split(/\r?\n/).filter((line) => line.trim());
+  if (lines.length < 2) return;
+  const headers = parseCsvLine(lines[0]);
+  const codeIndex = headers.findIndex((header) => /證券代號|Code/i.test(header));
+  const closeIndex = headers.findIndex((header) => /收盤價|ClosingPrice/i.test(header));
+  if (codeIndex < 0 || closeIndex < 0) return;
+  for (const line of lines.slice(1)) {
+    const row = parseCsvLine(line);
+    const code = normalizeSymbol(row[codeIndex]);
+    const price = parseNumber(row[closeIndex]);
+    if (code && price) map.set(code, price);
+  }
+}
+
 function summarizeQuoteSources(quotes) {
   const counts = new Map();
   for (const quote of quotes.values()) {
@@ -362,14 +386,11 @@ async function fetchTwseQuotes() {
   }
   const response = await fetch("https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY_ALL?response=json");
   if (!response.ok) throw new Error(`TWSE HTTP ${response.status}`);
-  const data = await response.json();
+  const text = await response.text();
   const map = new Map();
-  const rows = Array.isArray(data) ? data : data.data || [];
-  for (const row of rows) {
-    const code = Array.isArray(row) ? normalizeSymbol(row[0]) : normalizeSymbol(row.Code || row.code || row["證券代號"]);
-    const price = Array.isArray(row) ? parseNumber(row[7]) : parseNumber(row.ClosingPrice || row.closingPrice || row["收盤價"]);
-    if (code && price) map.set(code, price);
-  }
+  const trimmed = text.trim();
+  if (trimmed.startsWith("{") || trimmed.startsWith("[")) addTwseJsonQuotes(JSON.parse(trimmed), map);
+  else addTwseCsvQuotes(text, map);
   try {
     for (const [code, price] of await fetchTpexQuotes()) map.set(code, price);
   } catch {
@@ -418,11 +439,7 @@ async function fetchTwseOpenApiQuotes() {
   if (!response.ok) throw new Error(`TWSE OpenAPI HTTP ${response.status}`);
   const rows = await response.json();
   const map = new Map();
-  for (const row of rows) {
-    const code = normalizeSymbol(row.Code || row.code || row["證券代號"]);
-    const price = parseNumber(row.ClosingPrice || row.closingPrice || row["收盤價"]);
-    if (code && price) map.set(code, price);
-  }
+  addTwseJsonQuotes(rows, map);
   if (!map.size) throw new Error("TWSE OpenAPI 沒有可解析的收盤價");
   return map;
 }
