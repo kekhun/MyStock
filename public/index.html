@@ -53,16 +53,31 @@
             </div>
             <div id="snapshotList" class="snapshot-list"></div>
           </section>
+          <section class="panel wide allocation-controls">
+            <div class="panel-title">
+              <div>
+                <h2>部位配置</h2>
+                <p id="allocationContext" class="allocation-context"></p>
+              </div>
+              <div class="allocation-control-group">
+                <div class="segmented-control" aria-label="配置視角">
+                  <button class="allocation-view-button active" data-allocation-view="current" type="button">目前配置</button>
+                  <button class="allocation-view-button" data-allocation-view="snapshot" type="button">歷史快照</button>
+                </div>
+                <select id="allocationSnapshotSelect" aria-label="歷史配置快照" hidden></select>
+              </div>
+            </div>
+          </section>
           <section class="panel">
-            <h2>分類配置</h2>
+            <h2 id="categoryChartTitle">分類配置</h2>
             <canvas id="categoryChart" height="240"></canvas>
           </section>
           <section class="panel">
-            <h2>券商配置</h2>
+            <h2 id="brokerChartTitle">券商配置</h2>
             <canvas id="brokerChart" height="240"></canvas>
           </section>
           <section class="panel">
-            <h2>台股 / 美股分布</h2>
+            <h2 id="marketChartTitle">台股 / 美股分布</h2>
             <canvas id="marketChart" height="240"></canvas>
           </section>
           <section class="panel">
@@ -143,6 +158,10 @@
           <input type="hidden" name="id" />
           <input type="hidden" name="direction" />
           <div class="adjust-summary" id="adjustHoldingSummary"></div>
+          <div class="segmented-control adjust-direction-control" aria-label="調整方式">
+            <button type="button" data-adjust-dialog-direction="increase">加碼</button>
+            <button type="button" data-adjust-dialog-direction="decrease">減碼</button>
+          </div>
           <label class="adjust-input-label">
             <span id="adjustHoldingInputLabel">增加股數</span>
             <input name="amount" type="number" min="0.0001" step="0.0001" inputmode="decimal" required autofocus />
@@ -187,6 +206,7 @@
             <select id="stockSelect"></select>
           </div>
           <div id="stockSummary" class="stock-summary"></div>
+          <p id="stockHistoryStatus" class="stock-history-status"></p>
           <canvas id="stockChart" height="320"></canvas>
           <div id="stockBrokerSplit" class="broker-split"></div>
         </section>
@@ -224,6 +244,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="config.js?v=20260517-supabase-url-fix"></script>
-    <script src="app.js?v=20260801-holding-adjustments-1" type="module"></script>
+    <script src="app.js?v=20260801-adjustment-control-1" type="module"></script>
   </body>
 </html>

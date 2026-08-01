@@ -395,6 +395,68 @@ canvas {
   font-size: 13px;
 }
 
+.allocation-controls {
+  padding-bottom: 14px;
+}
+
+.allocation-controls .panel-title {
+  align-items: flex-start;
+  margin: 0;
+}
+
+.allocation-context,
+.stock-history-status {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 5px 0 0;
+}
+
+.allocation-control-group,
+.segmented-control {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+.segmented-control {
+  background: var(--panel-soft);
+  border-radius: 8px;
+  padding: 3px;
+}
+
+.segmented-control button {
+  border-color: transparent;
+  box-shadow: none;
+  min-height: 32px;
+  padding: 0 11px;
+}
+
+.segmented-control button:hover {
+  box-shadow: none;
+  transform: none;
+}
+
+.segmented-control button.active {
+  background: #fff;
+  border-color: var(--line-soft);
+  color: var(--primary);
+  font-weight: 800;
+}
+
+.segmented-control button:disabled {
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
+#allocationSnapshotSelect {
+  border: 1px solid var(--line-soft);
+  border-radius: 7px;
+  color: var(--ink);
+  min-height: 38px;
+  padding: 7px 10px;
+}
+
 .period-button {
   min-height: 32px;
   padding: 0 12px;
@@ -598,7 +660,7 @@ td:nth-child(6),
 
 .table-wrap th:last-child,
 .table-wrap td:last-child {
-  min-width: 194px;
+  min-width: 168px;
 }
 
 .table-actions {
@@ -607,7 +669,6 @@ td:nth-child(6),
   gap: 6px;
 }
 
-.adjust-button,
 .icon-button {
   align-items: center;
   display: inline-flex;
@@ -619,12 +680,9 @@ td:nth-child(6),
   width: 30px;
 }
 
-.adjust-button.increase {
-  color: #047857;
-}
-
-.adjust-button.decrease {
-  color: var(--danger);
+.adjust-trigger {
+  color: var(--primary);
+  font-weight: 800;
 }
 
 .adjust-dialog {
@@ -676,6 +734,23 @@ td:nth-child(6),
 .adjust-preview {
   color: var(--muted);
   font-size: 13px;
+}
+
+.adjust-direction-control {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.adjust-direction-control button {
+  width: 100%;
+}
+
+.adjust-direction-control button[data-adjust-dialog-direction="increase"].active {
+  color: #047857;
+}
+
+.adjust-direction-control button[data-adjust-dialog-direction="decrease"].active {
+  color: var(--danger);
 }
 
 .adjust-input-label {
@@ -940,6 +1015,14 @@ td:nth-child(6),
   margin-bottom: 18px;
 }
 
+.stock-history-status {
+  background: var(--surface-row);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius);
+  margin: -4px 0 16px;
+  padding: 10px 12px;
+}
+
 .metric {
   background: var(--surface-row);
   border: 1px solid var(--line-soft);
@@ -1182,6 +1265,16 @@ td:nth-child(6),
   .panel-title {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .allocation-control-group {
+    align-items: stretch;
+    flex-wrap: wrap;
+    width: 100%;
+  }
+
+  #allocationSnapshotSelect {
+    flex: 1 1 170px;
   }
 
   button,

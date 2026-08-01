@@ -18,6 +18,8 @@ const percent = new Intl.NumberFormat("zh-TW", { style: "percent", maximumFracti
 
 let state = null;
 let selectedPeriod = "all";
+let allocationView = "current";
+let selectedAllocationSnapshotId = "";
 let supabaseClient = null;
 let timelineInteraction = null;
 
@@ -878,8 +880,7 @@ function renderHoldings() {
         <td>${moneyValue(holding.valueTwd, "TWD")}</td>
         <td><span class="swatch" style="display:inline-block;background:${categoryColor(holding.categoryId)}"></span> ${categoryName(holding.categoryId)}</td>
         <td><div class="table-actions">
-          <button class="adjust-button increase" data-adjust-holding="${holding.id}" data-adjust-direction="increase" title="加碼" aria-label="加碼">+</button>
-          <button class="adjust-button decrease" data-adjust-holding="${holding.id}" data-adjust-direction="decrease" title="減碼" aria-label="減碼">-</button>
+          <button class="adjust-trigger" data-open-adjust-holding="${holding.id}">調整</button>
           <button data-edit-holding="${holding.id}">編輯</button>
           <button class="danger" data-archive-holding="${holding.id}">停用</button>
         </div></td>
@@ -908,7 +909,6 @@ function renderDashboard() {
   const periodSnapshots = filterSnapshotsByPeriod(state.snapshots, selectedPeriod);
   const normalizedSnapshots = periodSnapshots.map(normalizeSnapshot);
   const fullSnapshots = normalizedSnapshots.filter((snapshot) => snapshot.totals?.byCategory || snapshot.totals?.byBroker || snapshot.totals?.byMarket);
-  const endSnapshot = fullSnapshots.at(-1);
   const timeline = periodSnapshots.map((snapshot) => ({
     label: snapshot.date,
     time: snapshotTimestamp(snapshot),
@@ -923,20 +923,59 @@ function renderDashboard() {
   });
   setupTimelineTooltip(timeline, timelineMeta);
   renderSnapshotList(timeline);
+  const allocationTotals = renderAllocationControls(fullSnapshots);
   drawDonutChart(
     $("#categoryChart"),
-    Object.entries(endSnapshot?.totals?.byCategory || state.totals.byCategory).map(([id, value]) => ({ label: categoryName(id), value, color: categoryColor(id) }))
+    Object.entries(allocationTotals.byCategory || {}).map(([id, value]) => ({ label: categoryName(id), value, color: categoryColor(id) }))
   );
   drawDonutChart(
     $("#brokerChart"),
-    Object.entries(endSnapshot?.totals?.byBroker || state.totals.byBroker).map(([label, value], index) => ({ label, value, color: palette(index) }))
+    Object.entries(allocationTotals.byBroker || {}).map(([label, value], index) => ({ label, value, color: palette(index) }))
   );
   drawDonutChart(
     $("#marketChart"),
-    Object.entries(endSnapshot?.totals?.byMarket || state.totals.byMarket || getCurrentMarketTotals()).map(([label, value], index) => ({ label, value, color: index === 0 ? "#2563eb" : "#059669" }))
+    Object.entries(allocationTotals.byMarket || getCurrentMarketTotals()).map(([label, value], index) => ({ label, value, color: index === 0 ? "#2563eb" : "#059669" }))
   );
   renderPeriodBreakdown(normalizedSnapshots);
   renderConcentration();
+}
+
+function renderAllocationControls(fullSnapshots) {
+  const historicalAvailable = fullSnapshots.length >= 2;
+  if (!historicalAvailable) allocationView = "current";
+  const snapshotSelect = $("#allocationSnapshotSelect");
+  const selectedSnapshot = fullSnapshots.find((snapshot) => snapshot.id === selectedAllocationSnapshotId);
+  if (!selectedSnapshot) selectedAllocationSnapshotId = fullSnapshots.at(-1)?.id || "";
+  snapshotSelect.innerHTML = fullSnapshots
+    .slice()
+    .reverse()
+    .map((snapshot) => `<option value="${snapshot.id}">${snapshot.date}</option>`)
+    .join("");
+  snapshotSelect.value = selectedAllocationSnapshotId;
+  snapshotSelect.hidden = allocationView !== "snapshot";
+  $$(".allocation-view-button").forEach((button) => {
+    const isHistorical = button.dataset.allocationView === "snapshot";
+    button.disabled = isHistorical && !historicalAvailable;
+    button.classList.toggle("active", button.dataset.allocationView === allocationView);
+  });
+
+  if (allocationView === "snapshot") {
+    const snapshot = fullSnapshots.find((item) => item.id === selectedAllocationSnapshotId) || fullSnapshots.at(-1);
+    const suffix = `（${snapshot.date}）`;
+    $("#allocationContext").textContent = `完整快照 ${snapshot.date}`;
+    $("#categoryChartTitle").textContent = `分類配置 ${suffix}`;
+    $("#brokerChartTitle").textContent = `券商配置 ${suffix}`;
+    $("#marketChartTitle").textContent = `台股 / 美股分布 ${suffix}`;
+    return snapshot.totals;
+  }
+
+  $("#allocationContext").textContent = historicalAvailable
+    ? "目前部位與最新價格"
+    : `目前部位與最新價格；完整快照 ${fullSnapshots.length} 筆`;
+  $("#categoryChartTitle").textContent = "分類配置（目前）";
+  $("#brokerChartTitle").textContent = "券商配置（目前）";
+  $("#marketChartTitle").textContent = "台股 / 美股分布（目前）";
+  return state.totals;
 }
 
 function normalizeSnapshot(snapshot) {
@@ -1156,9 +1195,18 @@ function renderStockDetail() {
     .filter((snapshot) => snapshot.bySymbol?.[symbol])
     .map((snapshot) => ({
       label: snapshot.date,
+      time: snapshotTimestamp(snapshot),
       value: snapshot.bySymbol[symbol].valueTwd || 0,
       shares: snapshot.bySymbol[symbol].shares || 0,
     }));
+  const historyStatus = $("#stockHistoryStatus");
+  if (!points.length) {
+    historyStatus.textContent = "尚無這檔股票的完整快照。";
+  } else if (points.length === 1) {
+    historyStatus.textContent = `已有 1 筆完整快照（${points[0].label}）；下次儲存快照後即可比較變化。`;
+  } else {
+    historyStatus.textContent = `${points[0].label} 到 ${points.at(-1).label}，共 ${points.length} 筆完整快照；X 軸依實際日期間隔顯示。`;
+  }
   drawDualLineChart($("#stockChart"), points, {
     valueColor: "#1f6feb",
     sharesColor: "#059669",
@@ -1353,8 +1401,16 @@ function drawDualLineChart(canvas, points, options) {
     bottom: valuePlot.bottom + gap + plotHeight,
   };
 
-  const x = (index, plot) => {
+  const times = points.map((point) => (Number.isFinite(point.time) ? point.time : null)).filter((time) => time != null);
+  const minTime = times.length ? Math.min(...times) : null;
+  const maxTime = times.length ? Math.max(...times) : null;
+  const useTimeScale = points.length > 1 && minTime != null && maxTime != null && maxTime > minTime;
+
+  const x = (point, index, plot) => {
     if (points.length === 1) return plot.left + (plot.right - plot.left) / 2;
+    if (useTimeScale && Number.isFinite(point.time)) {
+      return plot.left + ((point.time - minTime) / (maxTime - minTime)) * (plot.right - plot.left);
+    }
     return plot.left + (index / (points.length - 1)) * (plot.right - plot.left);
   };
   const getDomain = (values) => {
@@ -1403,7 +1459,7 @@ function drawDualLineChart(canvas, points, options) {
     ctx.lineJoin = "round";
     ctx.beginPath();
     points.forEach((point, index) => {
-      const px = x(index, plot);
+      const px = x(point, index, plot);
       const py = y(point[key] || 0);
       if (index === 0) ctx.moveTo(px, py);
       else ctx.lineTo(px, py);
@@ -1413,7 +1469,7 @@ function drawDualLineChart(canvas, points, options) {
     ctx.fillStyle = color;
     points.forEach((point, index) => {
       ctx.beginPath();
-      ctx.arc(x(index, plot), y(point[key] || 0), 3.5, 0, Math.PI * 2);
+      ctx.arc(x(point, index, plot), y(point[key] || 0), 3.5, 0, Math.PI * 2);
       ctx.fill();
     });
 
@@ -1422,7 +1478,7 @@ function drawDualLineChart(canvas, points, options) {
       ctx.font = compact ? "700 11px system-ui" : "700 12px system-ui";
       const badgeWidth = Math.min(ctx.measureText(text).width + 14, plot.right - plot.left);
       const badgeHeight = compact ? 22 : 24;
-      let bx = x(index, plot) - badgeWidth / 2;
+      let bx = x(points[index], index, plot) - badgeWidth / 2;
       const by = Math.max(plot.top + 4, Math.min(plot.bottom - badgeHeight - 4, y(value) + offsetY));
       bx = Math.max(plot.left, Math.min(plot.right - badgeWidth, bx));
       ctx.fillStyle = "rgba(255, 255, 255, 0.92)";
@@ -1573,19 +1629,27 @@ function openHoldingAdjustment(holding, direction) {
   if (!holding) return;
   const dialog = $("#adjustHoldingDialog");
   const form = $("#adjustHoldingForm");
-  const isIncrease = direction === "increase";
   form.id.value = holding.id;
-  form.direction.value = isIncrease ? "increase" : "decrease";
   form.dataset.currentShares = String(holding.shares);
   form.amount.value = "";
-  $("#adjustHoldingMode").textContent = isIncrease ? "加碼" : "減碼";
-  $("#adjustHoldingTitle").textContent = `${holding.symbol} ${isIncrease ? "加碼" : "減碼"}`;
-  $("#adjustHoldingInputLabel").textContent = isIncrease ? "增加股數" : "減少股數";
   $("#adjustHoldingSummary").innerHTML = `<strong>${holding.broker}</strong><span>${holding.symbol}</span><span>目前總股數 ${number.format(holding.shares)}</span>`;
-  $("#adjustHoldingPreview").textContent = "調整後總股數：-";
-  $("#adjustHoldingError").hidden = true;
+  setHoldingAdjustmentDirection(direction || "increase");
   dialog.showModal();
   form.amount.focus();
+}
+
+function setHoldingAdjustmentDirection(direction) {
+  const form = $("#adjustHoldingForm");
+  const isIncrease = direction === "increase";
+  form.direction.value = isIncrease ? "increase" : "decrease";
+  $("#adjustHoldingMode").textContent = isIncrease ? "加碼" : "減碼";
+  $("#adjustHoldingTitle").textContent = isIncrease ? "加碼持股" : "減碼持股";
+  $("#adjustHoldingInputLabel").textContent = isIncrease ? "增加股數" : "減少股數";
+  $("#adjustHoldingPreview").textContent = "調整後總股數：-";
+  $("#adjustHoldingError").hidden = true;
+  $$("[data-adjust-dialog-direction]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.adjustDialogDirection === form.direction.value);
+  });
 }
 
 function updateHoldingAdjustmentPreview() {
@@ -1632,12 +1696,9 @@ document.addEventListener("click", async (event) => {
     fillHoldingForm(state.holdings.find((holding) => holding.id === editHolding.dataset.editHolding));
     document.querySelector('[data-tab="holdings"]').click();
   }
-  const adjustHolding = event.target.closest("[data-adjust-holding]");
+  const adjustHolding = event.target.closest("[data-open-adjust-holding]");
   if (adjustHolding) {
-    openHoldingAdjustment(
-      state.holdings.find((holding) => holding.id === adjustHolding.dataset.adjustHolding),
-      adjustHolding.dataset.adjustDirection
-    );
+    openHoldingAdjustment(state.holdings.find((holding) => holding.id === adjustHolding.dataset.openAdjustHolding));
     return;
   }
   const archiveHolding = event.target.closest("[data-archive-holding]");
@@ -1713,6 +1774,9 @@ $("#adjustHoldingForm").addEventListener("submit", async (event) => {
 
 $("#closeAdjustHolding").addEventListener("click", () => $("#adjustHoldingDialog").close());
 $("#cancelAdjustHolding").addEventListener("click", () => $("#adjustHoldingDialog").close());
+$$('[data-adjust-dialog-direction]').forEach((button) => {
+  button.addEventListener("click", () => setHoldingAdjustmentDirection(button.dataset.adjustDialogDirection));
+});
 
 $("#categoryForm").addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -1775,6 +1839,17 @@ $$(".period-button").forEach((button) => {
     $$(".period-button").forEach((item) => item.classList.toggle("active", item === button));
     renderDashboard();
   });
+});
+$$('.allocation-view-button').forEach((button) => {
+  button.addEventListener("click", () => {
+    if (button.disabled) return;
+    allocationView = button.dataset.allocationView;
+    renderDashboard();
+  });
+});
+$("#allocationSnapshotSelect").addEventListener("change", (event) => {
+  selectedAllocationSnapshotId = event.currentTarget.value;
+  renderDashboard();
 });
 window.addEventListener("resize", () => {
   renderDashboard();
