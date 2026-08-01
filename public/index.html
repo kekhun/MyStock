@@ -131,6 +131,31 @@
         </section>
       </section>
 
+      <dialog id="adjustHoldingDialog" class="adjust-dialog" aria-labelledby="adjustHoldingTitle">
+        <form id="adjustHoldingForm" method="dialog">
+          <div class="dialog-title">
+            <div>
+              <p class="eyebrow" id="adjustHoldingMode"></p>
+              <h2 id="adjustHoldingTitle">調整持股</h2>
+            </div>
+            <button class="icon-button" type="button" id="closeAdjustHolding" aria-label="關閉">&times;</button>
+          </div>
+          <input type="hidden" name="id" />
+          <input type="hidden" name="direction" />
+          <div class="adjust-summary" id="adjustHoldingSummary"></div>
+          <label class="adjust-input-label">
+            <span id="adjustHoldingInputLabel">增加股數</span>
+            <input name="amount" type="number" min="0.0001" step="0.0001" inputmode="decimal" required autofocus />
+          </label>
+          <p class="adjust-preview" id="adjustHoldingPreview">調整後總股數：-</p>
+          <p class="adjust-error" id="adjustHoldingError" hidden></p>
+          <div class="dialog-actions">
+            <button type="button" id="cancelAdjustHolding">取消</button>
+            <button type="submit" class="primary" id="saveAdjustHolding">確認調整</button>
+          </div>
+        </form>
+      </dialog>
+
       <section id="categories" class="tab-panel">
         <section class="panel">
           <div class="panel-title">
@@ -199,6 +224,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="config.js?v=20260517-supabase-url-fix"></script>
-    <script src="app.js?v=20260713-twse-csv-1" type="module"></script>
+    <script src="app.js?v=20260801-holding-adjustments-1" type="module"></script>
   </body>
 </html>

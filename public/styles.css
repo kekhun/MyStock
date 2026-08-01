@@ -598,12 +598,127 @@ td:nth-child(6),
 
 .table-wrap th:last-child,
 .table-wrap td:last-child {
-  min-width: 146px;
+  min-width: 194px;
 }
 
 .table-actions {
   display: flex;
-  gap: 8px;
+  align-items: center;
+  gap: 6px;
+}
+
+.adjust-button,
+.icon-button {
+  align-items: center;
+  display: inline-flex;
+  font-size: 18px;
+  font-weight: 800;
+  justify-content: center;
+  min-height: 30px;
+  padding: 0;
+  width: 30px;
+}
+
+.adjust-button.increase {
+  color: #047857;
+}
+
+.adjust-button.decrease {
+  color: var(--danger);
+}
+
+.adjust-dialog {
+  background: var(--panel);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius);
+  box-shadow: 0 24px 72px rgba(23, 32, 51, 0.24);
+  color: var(--ink);
+  max-width: min(420px, calc(100vw - 28px));
+  padding: 0;
+  width: 420px;
+}
+
+.adjust-dialog::backdrop {
+  background: rgba(23, 32, 51, 0.32);
+}
+
+.adjust-dialog form {
+  display: grid;
+  gap: 16px;
+  padding: 20px;
+}
+
+.dialog-title {
+  align-items: flex-start;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.dialog-title .eyebrow {
+  margin-bottom: 4px;
+}
+
+.dialog-title h2 {
+  margin: 0;
+}
+
+.adjust-summary {
+  background: var(--surface-row);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius);
+  display: grid;
+  gap: 3px;
+  padding: 12px;
+}
+
+.adjust-summary span,
+.adjust-preview {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.adjust-input-label {
+  color: var(--muted);
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.adjust-input-label input {
+  background: #fff;
+  border: 1px solid var(--line-soft);
+  border-radius: 7px;
+  color: var(--ink);
+  min-height: 42px;
+  padding: 8px 10px;
+  width: 100%;
+}
+
+.adjust-input-label input:focus {
+  border-color: #9ec5fe;
+  box-shadow: 0 0 0 3px rgba(31, 111, 235, 0.12);
+  outline: none;
+}
+
+.adjust-preview {
+  background: var(--panel-soft);
+  border-radius: 7px;
+  margin: 0;
+  padding: 10px 12px;
+}
+
+.adjust-error {
+  color: var(--danger);
+  font-size: 13px;
+  font-weight: 700;
+  margin: -8px 0 0;
+}
+
+.dialog-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
 }
 
 .edit-form {

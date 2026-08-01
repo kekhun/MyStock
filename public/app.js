@@ -878,6 +878,8 @@ function renderHoldings() {
         <td>${moneyValue(holding.valueTwd, "TWD")}</td>
         <td><span class="swatch" style="display:inline-block;background:${categoryColor(holding.categoryId)}"></span> ${categoryName(holding.categoryId)}</td>
         <td><div class="table-actions">
+          <button class="adjust-button increase" data-adjust-holding="${holding.id}" data-adjust-direction="increase" title="加碼" aria-label="加碼">+</button>
+          <button class="adjust-button decrease" data-adjust-holding="${holding.id}" data-adjust-direction="decrease" title="減碼" aria-label="減碼">-</button>
           <button data-edit-holding="${holding.id}">編輯</button>
           <button class="danger" data-archive-holding="${holding.id}">停用</button>
         </div></td>
@@ -1567,6 +1569,47 @@ function fillHoldingForm(holding = {}) {
   $("#holdingFormTitle").textContent = holding.id ? "編輯持股" : "新增持股";
 }
 
+function openHoldingAdjustment(holding, direction) {
+  if (!holding) return;
+  const dialog = $("#adjustHoldingDialog");
+  const form = $("#adjustHoldingForm");
+  const isIncrease = direction === "increase";
+  form.id.value = holding.id;
+  form.direction.value = isIncrease ? "increase" : "decrease";
+  form.dataset.currentShares = String(holding.shares);
+  form.amount.value = "";
+  $("#adjustHoldingMode").textContent = isIncrease ? "加碼" : "減碼";
+  $("#adjustHoldingTitle").textContent = `${holding.symbol} ${isIncrease ? "加碼" : "減碼"}`;
+  $("#adjustHoldingInputLabel").textContent = isIncrease ? "增加股數" : "減少股數";
+  $("#adjustHoldingSummary").innerHTML = `<strong>${holding.broker}</strong><span>${holding.symbol}</span><span>目前總股數 ${number.format(holding.shares)}</span>`;
+  $("#adjustHoldingPreview").textContent = "調整後總股數：-";
+  $("#adjustHoldingError").hidden = true;
+  dialog.showModal();
+  form.amount.focus();
+}
+
+function updateHoldingAdjustmentPreview() {
+  const form = $("#adjustHoldingForm");
+  const amount = Number(form.amount.value);
+  const currentShares = Number(form.dataset.currentShares || 0);
+  const isIncrease = form.direction.value === "increase";
+  const nextShares = currentShares + (isIncrease ? amount : -amount);
+  const error = $("#adjustHoldingError");
+  if (!Number.isFinite(amount) || amount <= 0) {
+    $("#adjustHoldingPreview").textContent = "調整後總股數：-";
+    error.hidden = true;
+    return null;
+  }
+  $("#adjustHoldingPreview").textContent = `調整後總股數：${number.format(nextShares)}`;
+  if (nextShares < 0) {
+    error.textContent = "減碼股數不可超過目前總股數。";
+    error.hidden = false;
+    return null;
+  }
+  error.hidden = true;
+  return nextShares;
+}
+
 function fillCategoryForm(category = {}) {
   const form = $("#categoryForm");
   form.id.value = category.id || "";
@@ -1588,6 +1631,14 @@ document.addEventListener("click", async (event) => {
   if (editHolding) {
     fillHoldingForm(state.holdings.find((holding) => holding.id === editHolding.dataset.editHolding));
     document.querySelector('[data-tab="holdings"]').click();
+  }
+  const adjustHolding = event.target.closest("[data-adjust-holding]");
+  if (adjustHolding) {
+    openHoldingAdjustment(
+      state.holdings.find((holding) => holding.id === adjustHolding.dataset.adjustHolding),
+      adjustHolding.dataset.adjustDirection
+    );
+    return;
   }
   const archiveHolding = event.target.closest("[data-archive-holding]");
   if (archiveHolding && confirm("停用這筆持股？歷史快照不會被刪除。")) {
@@ -1647,6 +1698,21 @@ $("#holdingForm").addEventListener("submit", async (event) => {
   fillHoldingForm();
   await load();
 });
+
+$("#adjustHoldingForm").addEventListener("input", updateHoldingAdjustmentPreview);
+$("#adjustHoldingForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const nextShares = updateHoldingAdjustmentPreview();
+  if (nextShares == null) return;
+  await api(`/api/holdings/${form.id.value}`, { method: "PATCH", body: { shares: nextShares } });
+  $("#adjustHoldingDialog").close();
+  await load();
+  setStatus(`已${form.direction.value === "increase" ? "加碼" : "減碼"}，目前總股數為 ${number.format(nextShares)}。`);
+});
+
+$("#closeAdjustHolding").addEventListener("click", () => $("#adjustHoldingDialog").close());
+$("#cancelAdjustHolding").addEventListener("click", () => $("#adjustHoldingDialog").close());
 
 $("#categoryForm").addEventListener("submit", async (event) => {
   event.preventDefault();
