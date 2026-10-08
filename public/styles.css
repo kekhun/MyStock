@@ -22,6 +22,8 @@
   box-sizing: border-box;
 }
 
+[hidden] { display: none !important; }
+
 body {
   margin: 0;
   min-height: 100vh;
@@ -500,6 +502,46 @@ canvas {
   display: block;
   font-size: 15px;
   font-variant-numeric: tabular-nums;
+}
+
+.import-panel { min-width: 0; }
+.import-panel fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+.import-options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.import-options label { display: flex; flex-direction: column; gap: 7px; min-width: 0; font-size: 14px; color: var(--muted); }
+.import-options input, .import-options select { width: 100%; min-width: 0; border: 1px solid var(--line); border-radius: 6px; padding: 10px; background: #fff; color: var(--ink); min-height: 42px; }
+.import-options input[type="file"] { padding: 8px; }
+.import-sheet-options { grid-template-columns: 1fr 2fr; margin: 24px 0 16px; padding-top: 20px; border-top: 1px solid var(--line-soft); }
+.import-message { color: var(--muted); font-size: 14px; line-height: 1.7; overflow-wrap: anywhere; margin: 22px 0; }
+.import-error, .import-negative { color: var(--danger); }
+.import-positive { color: #08785d; }
+.import-preview-heading, .import-footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+.import-preview-heading h3 { margin: 0; font-size: 18px; }
+.import-preview-heading span, .import-footer span { color: var(--muted); font-size: 14px; }
+.import-toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin: 16px 0; }
+.import-toolbar button { font-size: 14px; }
+.import-table-wrap { overflow: auto; max-height: 480px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.import-table { min-width: 900px; table-layout: auto; }
+table.import-table th, table.import-table td { width: auto; text-align: left; vertical-align: middle; padding: 12px; overflow-wrap: anywhere; }
+.import-table th { position: sticky; top: 0; z-index: 1; background: #f4f6fa; white-space: nowrap; }
+.import-table th:first-child, .import-table td:first-child { width: 44px; }
+.import-table th:nth-child(2), .import-table td:nth-child(2) { width: 50px; }
+.import-table .numeric { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.import-table input[type="checkbox"] { width: 18px; height: 18px; min-height: 0; accent-color: var(--primary); padding: 0; }
+.import-row-error { color: var(--danger); }
+tr.import-row-error { background: #fff7f6; }
+span.import-row-error { display: block; margin-top: 6px; font-size: 13px; max-width: 270px; }
+.import-badge { font-size: 13px; white-space: nowrap; }
+.import-footer { margin-top: 20px; }
+@media (max-width: 800px) {
+  .import-options { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .import-sheet-options { grid-template-columns: 1fr; }
+}
+@media (max-width: 500px) {
+  .import-options { grid-template-columns: minmax(0, 1fr); }
+  .import-toolbar button { width: auto; }
+  .import-preview-heading { align-items: flex-start; flex-direction: column; }
+  .import-table th, .import-table td { padding: 10px; }
+  .import-table { min-width: 900px; }
 }
 
 .table-wrap {

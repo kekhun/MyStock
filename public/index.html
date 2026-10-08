@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>MyStock 部位追蹤</title>
-    <link rel="stylesheet" href="styles.css?v=20260521-mobile-sticky-head-1" />
+    <link rel="stylesheet" href="styles.css?v=20261009-import-tools-1" />
   </head>
   <body>
     <header class="topbar">
@@ -29,6 +29,7 @@
       <nav class="tabs" aria-label="主要頁籤">
         <button class="tab active" data-tab="dashboard">總覽</button>
         <button class="tab" data-tab="holdings">持股</button>
+        <button class="tab" data-tab="import">匯入</button>
         <button class="tab" data-tab="categories">分類</button>
         <button class="tab" data-tab="stock">單一股票</button>
         <button class="tab" data-tab="settings">設定</button>
@@ -95,7 +96,7 @@
         <section class="panel">
           <div class="panel-title">
             <h2>持股明細</h2>
-            <button id="newHolding">新增持股</button>
+            <div class="actions"><button id="importPositions">匯入部位</button><button id="newHolding">新增持股</button></div>
           </div>
           <div class="table-wrap">
             <table>
@@ -135,7 +136,7 @@
                 <option value="TWD">TWD</option>
               </select>
             </label>
-            <label>股數 <input name="shares" type="number" step="0.0001" required /></label>
+            <label>股數 <input name="shares" type="number" step="0.00000001" required /></label>
             <label>分類 <select name="categoryId" id="holdingCategorySelect"></select></label>
             <p class="form-note">同一券商同一檔股票增加持股時，請編輯原本那列，將「股數」改成目前總股數。換券商買同一檔股票時，新增一筆持股並填相同股票代號。</p>
             <div class="form-actions">
@@ -143,6 +144,37 @@
               <button type="button" id="resetHoldingForm">清空</button>
             </div>
           </form>
+        </section>
+      </section>
+
+      <section id="import" class="tab-panel">
+        <section class="panel import-panel">
+          <div class="panel-title"><h2>匯入券商部位</h2><span class="muted">CSV / Excel</span></div>
+          <fieldset id="importControls">
+            <div class="import-options">
+              <label>部位檔案<input id="positionFile" type="file" accept=".csv,.xlsx,.xls" /></label>
+              <label>CSV 編碼<select id="importEncoding"><option value="utf-8">UTF-8</option><option value="big5">Big5 / 繁體中文</option></select></label>
+              <label>預設券商<input id="importBroker" list="importBrokerList" autocomplete="off" placeholder="選擇或輸入券商" /><datalist id="importBrokerList"></datalist></label>
+              <label>預設市場<select id="importMarket"><option value="">依代號判定</option><option value="TW">台股 · TWD</option><option value="US">美股 · USD</option></select></label>
+              <label>新增持股的分類<select id="importCategory"><option value="">選擇分類</option></select></label>
+            </div>
+            <div id="importMapping" hidden>
+              <div class="import-options import-sheet-options">
+                <label>工作表<select id="importSheet"></select></label>
+                <label>欄位名稱所在列<select id="importHeader"></select></label>
+              </div>
+              <div id="importFields" class="import-options"></div>
+            </div>
+          </fieldset>
+          <p id="importMessage" class="import-message" role="status" aria-live="polite">目前總股數 · 未列出的持股保留 · 不匯入買價或交易紀錄</p>
+          <div id="importPreview" hidden>
+            <div class="import-preview-heading"><h3>差異預覽</h3><span id="importCounts"></span></div>
+            <div class="import-toolbar"><button id="selectImportRows" type="button">全選變動</button><button id="clearImportRows" type="button">清除選取</button><button id="recheckImport" type="button">重新比對</button></div>
+            <div class="import-table-wrap">
+              <table class="import-table"><thead><tr><th aria-label="選取"></th><th>列</th><th>券商</th><th>股票</th><th>原股數</th><th>目前總股數</th><th>變動</th><th>狀態</th></tr></thead><tbody id="importRows"></tbody></table>
+            </div>
+            <div class="import-footer"><span>只更新勾選項目；原有分類與快照保持不變。</span><button id="applyImport" class="primary" type="button" disabled>確認套用 0 筆</button></div>
+          </div>
         </section>
       </section>
 
@@ -214,6 +246,7 @@
 
       <section id="settings" class="tab-panel">
         <section class="panel settings-panel">
+          <p id="siteToolsStatus" class="muted" role="status">對話連線：檢查中</p>
           <h2>資料來源設定</h2>
           <form id="settingsForm" class="edit-form settings-form">
             <label>Alpha Vantage API key <input name="alphaVantageApiKey" type="password" autocomplete="off" /></label>
@@ -244,6 +277,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="config.js?v=20260517-supabase-url-fix"></script>
-    <script src="app.js?v=20260801-adjustment-control-1" type="module"></script>
+    <script src="app.js?v=20261009-stock-plan-1" type="module"></script>
   </body>
 </html>

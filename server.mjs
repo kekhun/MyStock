@@ -4,6 +4,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { readJson, storageMode, writeJson } from "./store.mjs";
+import { applyImport } from "./public/import-core.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -767,6 +768,20 @@ async function handleApi(req, res, pathname) {
     const snapshots = [...data.snapshots, createSnapshot(portfolio)];
     await writeJson("snapshots", snapshots);
     return jsonResponse(res, 201, buildPortfolio({ ...data, snapshots }));
+  }
+
+  if (req.method === "POST" && pathname === "/api/holdings/import") {
+    const body = await readBody(req);
+    const holdings = await readJson("holdings");
+    const categories = await readJson("categories");
+    let next;
+    try {
+      next = applyImport(holdings, categories, body.changes, makeId);
+    } catch (error) {
+      return jsonResponse(res, 409, { error: error.message });
+    }
+    await writeJson("holdings", next);
+    return jsonResponse(res, 200, { applied: body.changes.length });
   }
 
   if (req.method === "POST" && pathname === "/api/holdings") {

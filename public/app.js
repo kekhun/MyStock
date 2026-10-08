@@ -1,3 +1,8 @@
+import { applyImport, escapeHtml } from "./import-core.js";
+import { setupImporter } from "./import-ui.js";
+import { registerSiteTools } from "./site-tools.js";
+import { brokerAccountLabel } from "./stock-plan.js";
+
 const currency = {
   TWD: new Intl.NumberFormat("zh-TW", { maximumFractionDigits: 0 }),
   USD: new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
@@ -13,7 +18,7 @@ const currencyPrefix = {
   USD: "US$",
 };
 
-const number = new Intl.NumberFormat("zh-TW", { maximumFractionDigits: 4 });
+const number = new Intl.NumberFormat("zh-TW", { maximumFractionDigits: 8 });
 const percent = new Intl.NumberFormat("zh-TW", { style: "percent", maximumFractionDigits: 1 });
 
 let state = null;
@@ -696,6 +701,11 @@ async function supabaseApi(path, options = {}) {
     await writeSupabaseDocument("snapshots", snapshots);
     return { ...buildPortfolio({ ...docs, snapshots }), meta: { storage: "supabase", authEnabled: true } };
   }
+  if (method === "POST" && path === "/api/holdings/import") {
+    const holdings = applyImport(docs.holdings, docs.categories, body.changes, makeId);
+    await writeSupabaseDocument("holdings", holdings);
+    return { applied: body.changes.length };
+  }
   if (method === "POST" && path === "/api/holdings") {
     const next = {
       id: makeId("holding"),
@@ -827,12 +837,12 @@ function renderSelectors() {
   const categoryOptions = state.allCategories
     .filter((category) => !category.archived)
     .sort((a, b) => a.order - b.order)
-    .map((category) => `<option value="${category.id}">${category.name}</option>`)
+    .map((category) => `<option value="${escapeHtml(category.id)}">${escapeHtml(category.name)}</option>`)
     .join("");
   $("#holdingCategorySelect").innerHTML = categoryOptions;
   const selected = $("#stockSelect").value;
   $("#stockSelect").innerHTML = state.allocationRows
-    .map((row) => `<option value="${row.symbol}">${row.symbol} ${row.name !== row.symbol ? row.name : ""}</option>`)
+    .map((row) => `<option value="${escapeHtml(row.symbol)}">${escapeHtml(row.symbol)} ${row.name !== row.symbol ? escapeHtml(row.name) : ""}</option>`)
     .join("");
   if (selected && state.allocationRows.some((row) => row.symbol === selected)) $("#stockSelect").value = selected;
 }
@@ -859,7 +869,7 @@ function renderHoldings() {
               <td colspan="8">
                 <div class="broker-group">
                   <span class="broker-chip"></span>
-                  <strong>${holding.broker}</strong>
+                  <strong>${escapeHtml(holding.broker)}</strong>
                   <span>${money(brokerTotal, "TWD")} · ${percent.format(state.totals.twd ? brokerTotal / state.totals.twd : 0)}</span>
                 </div>
               </td>
@@ -868,21 +878,21 @@ function renderHoldings() {
       currentBroker = holding.broker;
       const showHoldingName = holding.name && holding.name !== holding.symbol;
       return `${brokerHeader}<tr class="holding-row" style="--broker-color:${palette(brokerIndex)}">
-        <td><span class="broker-dot"></span>${holding.broker}</td>
+        <td><span class="broker-dot"></span>${escapeHtml(holding.broker)}</td>
         <td>
           <div class="symbol-cell">
-            <div><strong>${holding.symbol}</strong>${showHoldingName ? `<br><span class="muted">${holding.name}</span>` : ""}</div>
+            <div><strong>${escapeHtml(holding.symbol)}</strong>${showHoldingName ? `<br><span class="muted">${escapeHtml(holding.name)}</span>` : ""}</div>
           </div>
         </td>
         <td>${number.format(holding.shares)}</td>
         <td>${holding.currency}</td>
         <td>${moneyValue(holding.price, holding.currency)}</td>
         <td>${moneyValue(holding.valueTwd, "TWD")}</td>
-        <td><span class="swatch" style="display:inline-block;background:${categoryColor(holding.categoryId)}"></span> ${categoryName(holding.categoryId)}</td>
+        <td><span class="swatch" style="display:inline-block;background:${categoryColor(holding.categoryId)}"></span> ${escapeHtml(categoryName(holding.categoryId))}</td>
         <td><div class="table-actions">
-          <button class="adjust-trigger" data-open-adjust-holding="${holding.id}">調整</button>
-          <button data-edit-holding="${holding.id}">編輯</button>
-          <button class="danger" data-archive-holding="${holding.id}">停用</button>
+          <button class="adjust-trigger" data-open-adjust-holding="${escapeHtml(holding.id)}">調整</button>
+          <button data-edit-holding="${escapeHtml(holding.id)}">編輯</button>
+          <button class="danger" data-archive-holding="${escapeHtml(holding.id)}">停用</button>
         </div></td>
       </tr>`;
     })
@@ -930,7 +940,7 @@ function renderDashboard() {
   );
   drawDonutChart(
     $("#brokerChart"),
-    Object.entries(allocationTotals.byBroker || {}).map(([label, value], index) => ({ label, value, color: palette(index) }))
+    Object.entries(allocationTotals.byBroker || {}).map(([label, value], index) => ({ label: brokerAccountLabel(label), value, color: palette(index) }))
   );
   drawDonutChart(
     $("#marketChart"),
@@ -1123,7 +1133,7 @@ function renderPeriodBreakdown(snapshots) {
       : "";
   const groups = [
     ["分類", "byCategory", categoryName],
-    ["券商", "byBroker", (label) => label],
+    ["券商", "byBroker", brokerAccountLabel],
     ["市場", "byMarket", (label) => label],
   ];
   $("#periodBreakdown").innerHTML = comparisonNote + groups
@@ -1147,7 +1157,7 @@ function renderChangeGroup(title, startValues, endValues, labeler) {
     <h3>${title}</h3>
     ${rows
       .map((row) => `<div class="change-row">
-        <span>${row.label}</span>
+        <span>${escapeHtml(row.label)}</span>
         <strong>${money(row.end, "TWD")}</strong>
         <em class="${row.change >= 0 ? "positive" : "negative"}">${row.change >= 0 ? "+" : ""}${money(row.change, "TWD")}</em>
       </div>`)
@@ -1216,7 +1226,7 @@ function renderStockDetail() {
   $("#stockBrokerSplit").innerHTML = Object.entries(row.brokers)
     .map(([broker, value], index) => `<div class="broker-row">
       <div class="bar-row">
-        <strong>${broker}</strong>
+        <strong title="${escapeHtml(broker)}">${escapeHtml(brokerAccountLabel(broker))}</strong>
         <div class="bar-track"><div class="bar-fill" style="width:${total ? (value / total) * 100 : 0}%;background:${palette(index)}"></div></div>
         <span>${money(value, "TWD")}</span>
       </div>
@@ -1632,7 +1642,7 @@ function openHoldingAdjustment(holding, direction) {
   form.id.value = holding.id;
   form.dataset.currentShares = String(holding.shares);
   form.amount.value = "";
-  $("#adjustHoldingSummary").innerHTML = `<strong>${holding.broker}</strong><span>${holding.symbol}</span><span>目前總股數 ${number.format(holding.shares)}</span>`;
+  $("#adjustHoldingSummary").innerHTML = `<strong>${escapeHtml(holding.broker)}</strong><span>${escapeHtml(holding.symbol)}</span><span>目前總股數 ${number.format(holding.shares)}</span>`;
   setHoldingAdjustmentDirection(direction || "increase");
   dialog.showModal();
   form.amount.focus();
@@ -1657,7 +1667,7 @@ function updateHoldingAdjustmentPreview() {
   const amount = Number(form.amount.value);
   const currentShares = Number(form.dataset.currentShares || 0);
   const isIncrease = form.direction.value === "increase";
-  const nextShares = currentShares + (isIncrease ? amount : -amount);
+  const nextShares = Number((currentShares + (isIncrease ? amount : -amount)).toFixed(8));
   const error = $("#adjustHoldingError");
   if (!Number.isFinite(amount) || amount <= 0) {
     $("#adjustHoldingPreview").textContent = "調整後總股數：-";
@@ -1856,4 +1866,23 @@ window.addEventListener("resize", () => {
   renderStockDetail();
 });
 
-load().catch((error) => setStatus(error.message, "載入失敗"));
+const importer = setupImporter({
+  getPortfolio: () => state,
+  refreshPortfolio: load,
+  applyChanges: (changes) => api("/api/holdings/import", { method: "POST", body: { changes } }),
+  navigate: () => document.querySelector('[data-tab="import"]').click(),
+});
+
+load().then(async () => {
+  const connected = await registerSiteTools({
+    getPortfolio: async () => { state = await api("/api/portfolio"); return state; },
+    showAdjustment: (holding, direction, amount) => {
+      if ($("#adjustHoldingDialog").open) $("#adjustHoldingDialog").close();
+      openHoldingAdjustment(holding, direction);
+      $("#adjustHoldingForm").amount.value = amount;
+      updateHoldingAdjustmentPreview();
+    },
+    previewImport: (rows) => importer.stageRows(rows),
+  });
+  $("#siteToolsStatus").textContent = connected ? "對話連線：已提供 5 項 Site tools" : "對話連線：此瀏覽器未提供 Site tools";
+}).catch((error) => setStatus(error.message, "載入或對話連線失敗"));
